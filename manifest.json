@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Converse",
+  "description": "Chrome extension generating follow-up messages in conversations",
+  "version": "1.0.0",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://linkedin.com/*",
+    "https://www.linkedin.com/*",
+    "https://messenger.com/*",
+    "https://www.messenger.com/*",
+    "https://web.whatsapp.com/*",
+    "https://mail.google.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "icons": {
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Converse",
+    "default_icon": {
+      "128": "icons/icon128.png"
+    }
+  }
+}

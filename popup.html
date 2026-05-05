@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Converse</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <section id="llm-modal-backdrop" class="modal-backdrop" hidden>
+        <section id="llm-modal" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="llm-modal-title">
+          <div class="modal-header">
+            <div>
+              <p class="modal-eyebrow">connection</p>
+              <h1 id="llm-modal-title" class="modal-title">llm settings</h1>
+            </div>
+            <button id="llm-modal-close-button" class="modal-close-button" type="button" aria-label="close llm settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M18 6l-12 12" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <section class="nested-group">
+            <div class="stacked-field-group">
+              <label class="group-title input-label" for="llm-provider-select">provider</label>
+              <select id="llm-provider-select" class="single-line-input">
+                <option value="openai-chat-completions">OpenAI</option>
+              </select>
+            </div>
+
+            <div class="stacked-field-group">
+              <label class="group-title input-label" for="llm-base-url-input">relay url</label>
+              <input
+                id="llm-base-url-input"
+                class="single-line-input"
+                type="url"
+                spellcheck="false"
+                placeholder="http://127.0.0.1:8787">
+            </div>
+
+            <div class="stacked-field-group stacked-field-grid">
+              <div>
+                <label class="group-title input-label" for="llm-path-input">path</label>
+                <input
+                  id="llm-path-input"
+                  class="single-line-input"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="/v1/chat/completions">
+              </div>
+
+              <div>
+                <label class="group-title input-label" for="llm-model-select">model</label>
+                <select id="llm-model-select" class="single-line-input"></select>
+              </div>
+            </div>
+
+            <p class="helper-copy">
+              store only your relay details here. keep the actual OpenAI API key on your own server or local relay.
+            </p>
+
+            <div class="inline-actions">
+              <button id="llm-save-button" class="secondary-button" type="button">save llm settings</button>
+              <p id="llm-status-output" class="status-copy" role="status" aria-live="polite">loading connection settings…</p>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <section id="debug-modal-backdrop" class="modal-backdrop" hidden>
+        <section id="debug-modal" class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="debug-modal-title">
+          <div class="modal-header">
+            <div>
+              <p class="modal-eyebrow">inspection</p>
+              <h1 id="debug-modal-title" class="modal-title">debug</h1>
+            </div>
+            <button id="debug-modal-close-button" class="modal-close-button" type="button" aria-label="close debug modal">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M18 6l-12 12" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <section class="nested-group">
+            <div class="tab-row" role="tablist" aria-label="debug views">
+              <button
+                id="debug-parse-tab"
+                class="tab-button is-selected"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="debug-parse-panel">
+                parse result
+              </button>
+              <button
+                id="debug-prompt-tab"
+                class="tab-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="debug-prompt-panel">
+                prompt preview
+              </button>
+            </div>
+
+            <p id="debug-status-output" class="status-copy" role="status" aria-live="polite">ready</p>
+
+            <section id="debug-parse-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-parse-tab">
+              <label class="group-title" for="debug-parse-output">active DOM parsing result</label>
+              <div class="textarea-shell">
+                <textarea id="debug-parse-output" class="readout-input readout-with-action debug-output" rows="14" readonly spellcheck="false"></textarea>
+                <button class="inline-icon-button copy-button" type="button" data-copy-target="debug-parse-output" aria-label="copy parse result" title="copy parse result">
+                  <span class="icon-state icon-state-default" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" />
+                      <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                    </svg>
+                  </span>
+                  <span class="icon-state icon-state-copied" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M7 3.5a2.5 2.5 0 0 0 -2.5 2.5v8.326c0 .62 .229 1.218 .643 1.679l.357 .397v-10.402a2.5 2.5 0 0 1 2.5 -2.5h6.648a2.5 2.5 0 0 0 -2.148 -1.2z" fill="currentColor" opacity="0.62" stroke="none" />
+                      <path d="M9.5 7a2.5 2.5 0 0 0 -2.5 2.5v8a2.5 2.5 0 0 0 2.5 2.5h8a2.5 2.5 0 0 0 2.5 -2.5v-8a2.5 2.5 0 0 0 -2.5 -2.5z" fill="currentColor" stroke="none" />
+                      <path d="M11.25 14.1l1.55 1.55l3.95 -4.15" fill="none" stroke="#151821" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            <section id="debug-prompt-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-prompt-tab" hidden>
+              <label class="group-title" for="debug-prompt-output">generated prompt</label>
+              <div class="textarea-shell">
+                <textarea id="debug-prompt-output" class="readout-input readout-with-action debug-output" rows="14" readonly spellcheck="false"></textarea>
+                <button class="inline-icon-button copy-button" type="button" data-copy-target="debug-prompt-output" aria-label="copy generated prompt" title="copy generated prompt">
+                  <span class="icon-state icon-state-default" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" />
+                      <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                    </svg>
+                  </span>
+                  <span class="icon-state icon-state-copied" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M7 3.5a2.5 2.5 0 0 0 -2.5 2.5v8.326c0 .62 .229 1.218 .643 1.679l.357 .397v-10.402a2.5 2.5 0 0 1 2.5 -2.5h6.648a2.5 2.5 0 0 0 -2.148 -1.2z" fill="currentColor" opacity="0.62" stroke="none" />
+                      <path d="M9.5 7a2.5 2.5 0 0 0 -2.5 2.5v8a2.5 2.5 0 0 0 2.5 2.5h8a2.5 2.5 0 0 0 2.5 -2.5v-8a2.5 2.5 0 0 0 -2.5 -2.5z" fill="currentColor" stroke="none" />
+                      <path d="M11.25 14.1l1.55 1.55l3.95 -4.15" fill="none" stroke="#151821" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </section>
+          </section>
+        </section>
+      </section>
+
+      <section id="uploads-modal-backdrop" class="modal-backdrop" hidden>
+        <section id="uploads-modal" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="uploads-modal-title">
+          <div class="modal-header">
+            <div>
+              <p class="modal-eyebrow">documents</p>
+              <h1 id="uploads-modal-title" class="modal-title">tabler.io upload</h1>
+            </div>
+            <button id="uploads-modal-close-button" class="modal-close-button" type="button" aria-label="close uploads modal">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M18 6l-12 12" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <section class="nested-group">
+            <p class="helper-copy">
+              upload reusable documents once and let specific workflows pull them in automatically.
+            </p>
+
+            <div class="document-upload-list" role="list" aria-label="uploaded documents">
+              <section class="document-upload-item" role="listitem" aria-labelledby="resume-document-label">
+                <div class="document-upload-meta">
+                  <div class="document-upload-title-row">
+                    <h2 id="resume-document-label" class="group-title">resume</h2>
+                    <span class="resume-badge">cover letter only</span>
+                  </div>
+                  <p id="resume-status-output" class="status-copy" role="status" aria-live="polite">
+                    no resume uploaded yet. cover-letter mode will rely only on page context and your manual instructions.
+                  </p>
+                </div>
+
+                <div class="document-upload-actions">
+                  <input id="resume-file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+                  <button id="resume-upload-button" class="secondary-button" type="button">upload .docx</button>
+                  <button id="resume-clear-button" class="ghost-button" type="button">clear</button>
+                </div>
+              </section>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <section id="composer-view" class="view view-active" aria-label="composer">
+        <div class="view-header">
+          <p class="eyebrow">Converse</p>
+          <div class="view-header-actions">
+            <button class="icon-button debug-modal-open-button" type="button" aria-label="open debug modal" title="open debug modal">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M8 9a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v1a5 5 0 0 1 1 3v2a5 5 0 0 1 -10 0v-2a5 5 0 0 1 1 -3z" fill="currentColor" stroke="none" />
+                <path d="M9 8v-1a3 3 0 0 1 6 0v1" fill="none" />
+                <path d="M3 13h4" fill="none" />
+                <path d="M17 13h4" fill="none" />
+                <path d="M12 20v-4" fill="none" />
+                <path d="M4 19l3 -2" fill="none" />
+                <path d="M20 19l-3 -2" fill="none" />
+                <path d="M4 7l3.5 2" fill="none" />
+                <path d="M20 7l-3.5 2" fill="none" />
+              </svg>
+            </button>
+            <button class="icon-button uploads-modal-open-button" type="button" aria-label="open document uploads" title="open document uploads">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M14 2.75a2.25 2.25 0 0 1 1.592 .659l3.999 3.999a2.25 2.25 0 0 1 .659 1.592v8.75a3.25 3.25 0 0 1 -3.25 3.25h-10a3.25 3.25 0 0 1 -3.25 -3.25v-11.75a3.25 3.25 0 0 1 3.25 -3.25z" fill="currentColor" stroke="none" opacity="0.3" />
+                <path d="M14 2.75v4a1.25 1.25 0 0 0 1.25 1.25h4" fill="currentColor" stroke="none" />
+                <path d="M12 16v-5.25" />
+                <path d="M9.75 12.75l2.25 -2.25l2.25 2.25" />
+                <path d="M9 18.25h6" />
+              </svg>
+            </button>
+            <button class="icon-button llm-modal-open-button" type="button" aria-label="open llm settings" title="open llm settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M11.992 21c-.728 -.003 -1.455 -.442 -1.667 -1.317a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c.882 .214 1.32 .95 1.317 1.684" />
+                <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                <path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" />
+              </svg>
+            </button>
+            <select class="header-mode-select single-line-input" data-mode-select aria-label="generation mode"></select>
+          </div>
+        </div>
+
+        <section class="control-group">
+          <button id="configuration-toggle" class="toggle-header section-toggle" type="button" aria-expanded="true" aria-controls="configuration-panel">
+            <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 6l6 6l-6 6" />
+            </svg>
+            <span class="group-title section-title">configuration</span>
+          </button>
+          <div id="configuration-panel" class="toggle-panel">
+            <section class="nested-group" aria-labelledby="language-label">
+              <h1 id="language-label" class="group-title">language</h1>
+              <div id="language-group" class="chip-row" role="group" aria-label="language">
+                <button class="chip-button is-selected" type="button" data-group="language" data-value="auto">auto</button>
+                <button class="chip-button" type="button" data-group="language" data-value="english">english</button>
+                <button class="chip-button" type="button" data-group="language" data-value="french">french</button>
+              </div>
+            </section>
+
+            <section class="nested-group" aria-labelledby="tone-label">
+              <h2 id="tone-label" class="group-title">tone</h2>
+              <div id="tone-group" class="chip-row chip-row-wrap" role="group" aria-label="tone">
+                <button class="chip-button" type="button" data-group="tone" data-value="auto">auto</button>
+                <button class="chip-button" type="button" data-group="tone" data-value="casual">casual</button>
+                <button class="chip-button is-selected" type="button" data-group="tone" data-value="informal">informal</button>
+                <button class="chip-button is-selected" type="button" data-group="tone" data-value="conversational">conversational</button>
+                <button class="chip-button" type="button" data-group="tone" data-value="professional">professional</button>
+                <button class="chip-button" type="button" data-group="tone" data-value="human">human</button>
+                <button class="chip-button" type="button" data-group="tone" data-value="curious">curious</button>
+                <button class="chip-button" type="button" data-group="tone" data-value="warm">warm</button>
+                <button id="tone-reset" class="chip-button chip-icon-button" type="button" aria-label="reset tone selections" title="reset tone selections">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M3.06 13a9 9 0 1 0 .49 -4.087" />
+                    <path d="M3 4.001v5h5" />
+                    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                  </svg>
+                </button>
+              </div>
+            </section>
+
+            <section class="nested-group" aria-labelledby="length-label">
+              <h2 id="length-label" class="group-title">length</h2>
+              <div class="length-row">
+                <div id="length-value-group" class="chip-row chip-row-wrap" role="group" aria-label="length value">
+                  <button class="chip-button is-selected" type="button" data-group="length-value" data-value="auto">auto</button>
+                  <button class="chip-button" type="button" data-group="length-value" data-value="100">100</button>
+                  <button class="chip-button" type="button" data-group="length-value" data-value="200">200</button>
+                  <button class="chip-button" type="button" data-group="length-value" data-value="300">300</button>
+                  <button class="chip-button" type="button" data-group="length-value" data-value="400">400</button>
+                  <button class="chip-button" type="button" data-group="length-value" data-value="500">500</button>
+                </div>
+                <div id="length-unit-group" class="chip-row chip-row-wrap" role="group" aria-label="length unit">
+                  <button class="chip-button is-selected" type="button" data-group="length-unit" data-value="characters">characters</button>
+                  <button class="chip-button" type="button" data-group="length-unit" data-value="words">words</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="control-group">
+          <button id="directions-toggle" class="toggle-header section-toggle" type="button" aria-expanded="false" aria-controls="directions-panel">
+            <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 6l6 6l-6 6" />
+            </svg>
+            <span class="group-title section-title">further directions</span>
+          </button>
+          <div id="directions-panel" class="toggle-panel" hidden>
+            <section class="nested-group">
+              <label class="group-title" for="instructions-input">instructions</label>
+              <textarea id="instructions-input" class="prompt-input" rows="5" spellcheck="false"></textarea>
+            </section>
+            <section class="nested-group">
+              <label class="group-title" for="context-input">context</label>
+              <textarea id="context-input" class="prompt-input" rows="5" spellcheck="false"></textarea>
+            </section>
+          </div>
+        </section>
+
+        <div class="button-row">
+          <button id="generate-button" class="secondary-button primary-button" type="button">generate</button>
+          <button id="close-button" class="secondary-button" type="button">close</button>
+        </div>
+      </section>
+
+      <section id="results-view" class="view" aria-label="results" hidden>
+        <div class="view-header">
+          <p class="eyebrow">Converse</p>
+          <div class="view-header-actions">
+            <button class="icon-button debug-modal-open-button" type="button" aria-label="open debug modal" title="open debug modal">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M8 9a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v1a5 5 0 0 1 1 3v2a5 5 0 0 1 -10 0v-2a5 5 0 0 1 1 -3z" fill="currentColor" stroke="none" />
+                <path d="M9 8v-1a3 3 0 0 1 6 0v1" fill="none" />
+                <path d="M3 13h4" fill="none" />
+                <path d="M17 13h4" fill="none" />
+                <path d="M12 20v-4" fill="none" />
+                <path d="M4 19l3 -2" fill="none" />
+                <path d="M20 19l-3 -2" fill="none" />
+                <path d="M4 7l3.5 2" fill="none" />
+                <path d="M20 7l-3.5 2" fill="none" />
+              </svg>
+            </button>
+            <button class="icon-button uploads-modal-open-button" type="button" aria-label="open document uploads" title="open document uploads">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M14 2.75a2.25 2.25 0 0 1 1.592 .659l3.999 3.999a2.25 2.25 0 0 1 .659 1.592v8.75a3.25 3.25 0 0 1 -3.25 3.25h-10a3.25 3.25 0 0 1 -3.25 -3.25v-11.75a3.25 3.25 0 0 1 3.25 -3.25z" fill="currentColor" stroke="none" opacity="0.3" />
+                <path d="M14 2.75v4a1.25 1.25 0 0 0 1.25 1.25h4" fill="currentColor" stroke="none" />
+                <path d="M12 16v-5.25" />
+                <path d="M9.75 12.75l2.25 -2.25l2.25 2.25" />
+                <path d="M9 18.25h6" />
+              </svg>
+            </button>
+            <button class="icon-button llm-modal-open-button" type="button" aria-label="open llm settings" title="open llm settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M11.992 21c-.728 -.003 -1.455 -.442 -1.667 -1.317a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c.882 .214 1.32 .95 1.317 1.684" />
+                <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                <path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" />
+              </svg>
+            </button>
+            <select class="header-mode-select single-line-input" data-mode-select aria-label="generation mode"></select>
+          </div>
+        </div>
+
+        <section id="generation-loader" class="generation-loader" hidden aria-live="polite">
+          <div class="loader-spinner" aria-hidden="true"></div>
+          <p class="loader-title">generating suggestions</p>
+          <p class="loader-copy">parsing the page, building the prompt, and waiting for the model to answer.</p>
+        </section>
+
+        <section id="generation-error-banner" class="error-banner" hidden role="alert" aria-live="assertive">
+          <p id="generation-error-title" class="error-banner-title"></p>
+          <p id="generation-error-detail" class="error-banner-detail"></p>
+        </section>
+
+        <div id="suggestions-panel" hidden>
+          <section class="control-group">
+            <div class="suggestion-header">
+              <label class="group-title" for="suggestion-1-output">suggestion 1</label>
+              <button class="header-action-button pick-button" type="button" data-pick-target="suggestion-1-output">pick</button>
+            </div>
+            <div class="textarea-shell">
+              <textarea id="suggestion-1-output" class="readout-input readout-with-action suggestion-output" rows="2" readonly></textarea>
+              <button class="inline-icon-button copy-button" type="button" data-copy-target="suggestion-1-output" aria-label="copy suggestion 1" title="copy suggestion 1">
+                <span class="icon-state icon-state-default" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" />
+                    <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                  </svg>
+                </span>
+                <span class="icon-state icon-state-copied" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M7 3.5a2.5 2.5 0 0 0 -2.5 2.5v8.326c0 .62 .229 1.218 .643 1.679l.357 .397v-10.402a2.5 2.5 0 0 1 2.5 -2.5h6.648a2.5 2.5 0 0 0 -2.148 -1.2z" fill="currentColor" opacity="0.62" stroke="none" />
+                    <path d="M9.5 7a2.5 2.5 0 0 0 -2.5 2.5v8a2.5 2.5 0 0 0 2.5 2.5h8a2.5 2.5 0 0 0 2.5 -2.5v-8a2.5 2.5 0 0 0 -2.5 -2.5z" fill="currentColor" stroke="none" />
+                    <path d="M11.25 14.1l1.55 1.55l3.95 -4.15" fill="none" stroke="#151821" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section class="control-group">
+            <div class="suggestion-header">
+              <label class="group-title" for="suggestion-2-output">suggestion 2</label>
+              <button class="header-action-button pick-button" type="button" data-pick-target="suggestion-2-output">pick</button>
+            </div>
+            <div class="textarea-shell">
+              <textarea id="suggestion-2-output" class="readout-input readout-with-action suggestion-output" rows="2" readonly></textarea>
+              <button class="inline-icon-button copy-button" type="button" data-copy-target="suggestion-2-output" aria-label="copy suggestion 2" title="copy suggestion 2">
+                <span class="icon-state icon-state-default" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" />
+                    <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                  </svg>
+                </span>
+                <span class="icon-state icon-state-copied" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M7 3.5a2.5 2.5 0 0 0 -2.5 2.5v8.326c0 .62 .229 1.218 .643 1.679l.357 .397v-10.402a2.5 2.5 0 0 1 2.5 -2.5h6.648a2.5 2.5 0 0 0 -2.148 -1.2z" fill="currentColor" opacity="0.62" stroke="none" />
+                    <path d="M9.5 7a2.5 2.5 0 0 0 -2.5 2.5v8a2.5 2.5 0 0 0 2.5 2.5h8a2.5 2.5 0 0 0 2.5 -2.5v-8a2.5 2.5 0 0 0 -2.5 -2.5z" fill="currentColor" stroke="none" />
+                    <path d="M11.25 14.1l1.55 1.55l3.95 -4.15" fill="none" stroke="#151821" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section class="control-group">
+            <div class="suggestion-header">
+              <label class="group-title" for="suggestion-3-output">suggestion 3</label>
+              <button class="header-action-button pick-button" type="button" data-pick-target="suggestion-3-output">pick</button>
+            </div>
+            <div class="textarea-shell">
+              <textarea id="suggestion-3-output" class="readout-input readout-with-action suggestion-output" rows="2" readonly></textarea>
+              <button class="inline-icon-button copy-button" type="button" data-copy-target="suggestion-3-output" aria-label="copy suggestion 3" title="copy suggestion 3">
+                <span class="icon-state icon-state-default" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" />
+                    <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                  </svg>
+                </span>
+                <span class="icon-state icon-state-copied" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M7 3.5a2.5 2.5 0 0 0 -2.5 2.5v8.326c0 .62 .229 1.218 .643 1.679l.357 .397v-10.402a2.5 2.5 0 0 1 2.5 -2.5h6.648a2.5 2.5 0 0 0 -2.148 -1.2z" fill="currentColor" opacity="0.62" stroke="none" />
+                    <path d="M9.5 7a2.5 2.5 0 0 0 -2.5 2.5v8a2.5 2.5 0 0 0 2.5 2.5h8a2.5 2.5 0 0 0 2.5 -2.5v-8a2.5 2.5 0 0 0 -2.5 -2.5z" fill="currentColor" stroke="none" />
+                    <path d="M11.25 14.1l1.55 1.55l3.95 -4.15" fill="none" stroke="#151821" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section class="control-group">
+            <button
+              id="regenerate-configuration-toggle"
+              class="toggle-header section-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="regenerate-configuration-panel">
+              <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 6l6 6l-6 6" />
+              </svg>
+              <span class="group-title section-title">regenerate configuration</span>
+            </button>
+            <div id="regenerate-configuration-panel" class="toggle-panel" hidden>
+              <section class="nested-group" aria-labelledby="regenerate-suggestion-label">
+                <h2 id="regenerate-suggestion-label" class="group-title">liked suggestions</h2>
+                <div id="regenerate-suggestion-group" class="chip-row chip-row-wrap" role="group" aria-label="liked suggestions">
+                  <button class="chip-button" type="button" data-regenerate-suggestion-index="0">suggestion 1</button>
+                  <button class="chip-button" type="button" data-regenerate-suggestion-index="1">suggestion 2</button>
+                  <button class="chip-button" type="button" data-regenerate-suggestion-index="2">suggestion 3</button>
+                </div>
+              </section>
+
+              <section class="nested-group">
+                <label class="group-title" for="regenerate-instructions-input">additional instructions</label>
+                <textarea
+                  id="regenerate-instructions-input"
+                  class="prompt-input regenerate-instructions-input"
+                  rows="5"
+                  spellcheck="false"
+                  placeholder="make it warmer, shorter, more direct..."></textarea>
+              </section>
+            </div>
+          </section>
+        </div>
+
+        <div class="results-button-row">
+          <button id="retry-button" class="secondary-button" type="button">retry</button>
+          <div class="results-actions">
+            <button id="regenerate-button" class="secondary-button" type="button">regenerate</button>
+            <button id="results-close-button" class="secondary-button" type="button">close</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="prompting/config.js"></script>
+    <script src="llm/config.js"></script>
+    <script src="resume/docx.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
