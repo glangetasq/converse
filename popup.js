@@ -1,7 +1,4 @@
 const DEFAULT_TONES = ["informal", "conversational"];
-const WINDOW_WIDTH = 760;
-const WINDOW_MIN_HEIGHT = 280;
-const WINDOW_MARGIN = 80;
 const RESUME_STORAGE_KEY = "savedResume";
 const PARSE_RETRY_DELAY_MS = 250;
 const PARSE_RETRY_TIMEOUT_MS = 3500;
@@ -29,6 +26,7 @@ const uploadsModal = document.getElementById("uploads-modal");
 const uploadsModalCloseButton = document.getElementById("uploads-modal-close-button");
 const uploadsModalOpenButtons = Array.from(document.querySelectorAll(".uploads-modal-open-button"));
 const modeSelects = Array.from(document.querySelectorAll("[data-mode-select]"));
+const sourceSiteBadges = Array.from(document.querySelectorAll("[data-source-site]"));
 const debugModalBackdrop = document.getElementById("debug-modal-backdrop");
 const debugModal = document.getElementById("debug-modal");
 const debugModalCloseButton = document.getElementById("debug-modal-close-button");
@@ -99,14 +97,13 @@ const regenerateFormState = {
 };
 
 const urlParams = new URLSearchParams(window.location.search);
-const sourceUrl = urlParams.get("sourceUrl") ?? "";
+let sourceUrl = urlParams.get("sourceUrl") ?? "";
 const sourceTabIdValue = urlParams.get("sourceTabId");
-const sourceTabId = sourceTabIdValue === null ? Number.NaN : Number(sourceTabIdValue);
+let sourceTabId = sourceTabIdValue === null ? Number.NaN : Number(sourceTabIdValue);
 let lastLlmModalTrigger = null;
 let lastUploadsModalTrigger = null;
 let lastDebugModalTrigger = null;
 let debugLoadSequence = 0;
-let pendingResizeFrame = 0;
 let savedResume = null;
 
 async function parseSourceTab(modeId = formState.modeId) {
@@ -232,6 +229,7 @@ function syncModeSelects() {
   modeSelects.forEach((select) => {
     select.value = formState.modeId;
   });
+  resizeModeSelectsToSelectedOption();
 }
 
 function populateModeOptions() {
@@ -250,6 +248,95 @@ function populateModeOptions() {
   });
 
   syncModeSelects();
+}
+
+function getSourceSiteLabel(url) {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const parts = hostname.split(".").filter(Boolean);
+    const meaningfulParts = parts.filter((part) => !["www", "m", "web", "mail"].includes(part));
+
+    if (meaningfulParts.length >= 2) {
+      return meaningfulParts.at(-2);
+    }
+
+    return meaningfulParts[0] ?? hostname;
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function loadSavedSourceContext() {
+  if (sourceUrl && Number.isInteger(sourceTabId)) {
+    return;
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "converse:get-side-panel-source"
+    });
+    const source = response?.source;
+
+    if (!sourceUrl && typeof source?.sourceUrl === "string") {
+      sourceUrl = source.sourceUrl;
+    }
+
+    if (!Number.isInteger(sourceTabId) && Number.isInteger(source?.sourceTabId)) {
+      sourceTabId = source.sourceTabId;
+    }
+  } catch (_error) {
+    // The badge can stay hidden if no source context is available.
+  }
+}
+
+async function getActiveBrowserTab() {
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+  return activeTab ?? null;
+}
+
+async function isViewingSourceTab() {
+  if (!Number.isInteger(sourceTabId)) {
+    return false;
+  }
+
+  try {
+    const activeTab = await getActiveBrowserTab();
+    return activeTab?.id === sourceTabId;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function renderSourceSiteBadge() {
+  await loadSavedSourceContext();
+
+  const siteLabel = getSourceSiteLabel(sourceUrl);
+  const isCurrentSource = await isViewingSourceTab();
+  const displayText = siteLabel && !isCurrentSource
+    ? `${siteLabel} away`
+    : siteLabel;
+
+  sourceSiteBadges.forEach((badge) => {
+    badge.textContent = displayText;
+    badge.hidden = !siteLabel;
+    badge.classList.toggle("is-away", Boolean(siteLabel && !isCurrentSource));
+  });
+}
+
+function resizeModeSelectsToSelectedOption() {
+  modeSelects.forEach((select) => {
+    const optionTexts = Array.from(select.options).map((option) => option.textContent?.trim() || option.value || "");
+    const longestTextLength = Math.max(select.value.length, ...optionTexts.map((text) => text.length));
+    const widthCh = Math.min(Math.max(longestTextLength + 5, 13), 22);
+    select.style.setProperty("--mode-select-width", `${widthCh}ch`);
+  });
 }
 
 async function loadPromptSnippet(path) {
@@ -771,28 +858,11 @@ function getActiveRegenerateConfig() {
 }
 
 function resizeWindowToContent() {
-  const doc = document.documentElement;
-  const targetHeight = Math.min(
-    Math.max(
-      Math.max(document.body.scrollHeight, doc.scrollHeight) + (window.outerHeight - window.innerHeight),
-      WINDOW_MIN_HEIGHT
-    ),
-    window.screen.availHeight - WINDOW_MARGIN
-  );
-  window.resizeTo(WINDOW_WIDTH, targetHeight);
+  // Chrome owns side panel sizing; textarea autosizing is handled separately.
 }
 
 function scheduleWindowResize() {
-  if (pendingResizeFrame) {
-    window.cancelAnimationFrame(pendingResizeFrame);
-  }
-
-  pendingResizeFrame = window.requestAnimationFrame(() => {
-    pendingResizeFrame = window.requestAnimationFrame(() => {
-      pendingResizeFrame = 0;
-      resizeWindowToContent();
-    });
-  });
+  resizeWindowToContent();
 }
 
 function isLlmModalOpen() {
@@ -1484,6 +1554,19 @@ async function injectSuggestionIntoSourceTab(text) {
   }
 }
 
+function requestSidePanelClose() {
+  try {
+    chrome.runtime.sendMessage({
+      type: "converse:close-side-panel",
+      sourceTabId
+    }).catch(() => {
+      // Closing the panel is best-effort; successful pick/copy behavior should remain intact.
+    });
+  } catch (_error) {
+    // Closing the panel is best-effort; successful pick/copy behavior should remain intact.
+  }
+}
+
 async function runGeneration(regenerateConfig = null, { preserveRegenerateConfiguration = false } = {}) {
   const snapshot = getFormState();
   setActiveView("results");
@@ -1768,7 +1851,7 @@ pickButtons.forEach((button) => {
       button.classList.add("is-picked");
       button.textContent = "picked";
       window.setTimeout(() => resetPickButtonState(button), 1200);
-      window.close();
+      requestSidePanelClose();
     } catch (error) {
       button.classList.remove("is-picked");
       button.textContent = error instanceof Error ? "failed" : "error";
@@ -1780,11 +1863,12 @@ pickButtons.forEach((button) => {
 [closeButton, resultsCloseButton].forEach((button) => {
   button?.addEventListener("click", () => {
     resetRegenerateConfiguration();
-    window.close();
+    requestSidePanelClose();
   });
 });
 
-window.addEventListener("load", () => {
+window.addEventListener("load", async () => {
+  await renderSourceSiteBadge();
   populateModeOptions();
   populateModelOptions();
   updateSingleSelect(languageGroup, formState.language);
@@ -1811,10 +1895,25 @@ window.addEventListener("load", () => {
   });
 });
 
-window.addEventListener("resize", () => {
-  if (window.outerHeight > window.screen.availHeight - WINDOW_MARGIN) {
-    window.resizeTo(WINDOW_WIDTH, window.screen.availHeight - WINDOW_MARGIN);
+window.addEventListener("pagehide", () => {
+  chrome.runtime.sendMessage({
+    type: "converse:side-panel-unloaded",
+    sourceTabId
+  }).catch(() => {
+    // The service worker may already be unavailable while Chrome tears down the panel.
+  });
+});
+
+chrome.tabs?.onActivated?.addListener(() => {
+  renderSourceSiteBadge();
+});
+
+chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+  if (tabId === sourceTabId && changeInfo.url) {
+    sourceUrl = changeInfo.url;
   }
+
+  renderSourceSiteBadge();
 });
 
 window.addEventListener("keydown", (event) => {
