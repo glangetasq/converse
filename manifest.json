@@ -24,18 +24,18 @@
     "http://127.0.0.1/*"
   ],
   "icons": {
-    "128": "icons/icon128.png"
+    "128": "frontend/icons/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "frontend/background.js"
   },
   "side_panel": {
-    "default_path": "popup.html"
+    "default_path": "frontend/popup.html"
   },
   "action": {
     "default_title": "Converse",
     "default_icon": {
-      "128": "icons/icon128.png"
+      "128": "frontend/icons/icon128.png"
     }
   }
 }

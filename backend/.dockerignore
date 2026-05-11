@@ -1,4 +1,5 @@
-node_modules
-dist
 .env
-coverage
+.venv
+__pycache__
+*.pyc
+logs/

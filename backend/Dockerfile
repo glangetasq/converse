@@ -1,12 +1,16 @@
-FROM node:22-slim AS deps
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install
+FROM python:3.12-slim
 
-FROM node:22-slim AS runtime
 WORKDIR /app
-ENV NODE_ENV=development
-COPY --from=deps /app/node_modules ./node_modules
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
+
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000"]
+

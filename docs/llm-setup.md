@@ -90,9 +90,10 @@ The relay implementation is at `relay/server.mjs`.
 
 The extension now separates:
 
-- provider metadata and defaults in `llm/config.js`
-- provider-specific request/response handling in `llm/providers/`
-- UI and prompt building in `popup.js`
-- network execution and storage in `background.js`
+- provider metadata and defaults in `frontend/llm/config.js`
+- provider-specific request/response handling in `frontend/llm/providers/`
+- UI and prompt building in `frontend/popup.js`
+- network execution and storage in `frontend/background.js`
+- extension frontend files in `frontend/`
 
-To add another provider later, create another file in `llm/providers/`, register it, and save settings for that provider through the same popup flow.
+To add another provider later, create another file in `frontend/llm/providers/`, register it, and save settings for that provider through the same popup flow.
