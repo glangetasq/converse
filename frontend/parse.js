@@ -8,6 +8,7 @@
   const PARSER_FILES = [
     "frontend/content/parsing/runtime.js",
     "frontend/content/parsing/helpers.js",
+    "frontend/content/parsing/execute.js",
     "frontend/content/parsing/parsers/linkedin-messaging.js"
   ];
 
@@ -107,78 +108,18 @@
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: state.sourceTabId },
       func: async (parserIdOverride, retryDelayMs, retryTimeoutMs) => {
-        const wait = (durationMs) => new Promise((resolve) => {
-          globalThis.setTimeout(resolve, durationMs);
-        });
-
-        const isRecoverableLinkedInMessagingFailure = (parseResult) => {
-          if (parseResult?.status !== "failed_to_parse_with_appropriate_methodology") {
-            return false;
-          }
-
-          if (parseResult?.parserId !== "linkedin-messaging") {
-            return false;
-          }
-
-          return /message list was not found|no linkedin messages were extracted/i.test(parseResult?.error ?? "");
-        };
-
-        const nudgePageLifecycle = () => {
-          const events = [
-            () => globalThis.dispatchEvent(new Event("focus")),
-            () => globalThis.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false })),
-            () => globalThis.dispatchEvent(new Event("online")),
-            () => document.dispatchEvent(new Event("visibilitychange"))
-          ];
-
-          for (const dispatchEvent of events) {
-            try {
-              dispatchEvent();
-            } catch (_error) {
-              // Best-effort only; parsing can continue without lifecycle nudges.
-            }
-          }
-        };
-
-        const parse = () => {
-          if (parserIdOverride && globalThis.ConverseParsing.parseDocumentWithParserId) {
-            return globalThis.ConverseParsing.parseDocumentWithParserId(
-              parserIdOverride,
-              globalThis.location?.href ?? "",
-              document
-            );
-          }
-
-          return globalThis.ConverseParsing.parseCurrentPage();
-        };
-
-        if (!globalThis.ConverseParsing?.parseCurrentPage) {
+        if (!globalThis.ConverseParsing?.parseCurrentPageWithRetry) {
           return {
             status: "failed_to_parse_with_appropriate_methodology",
             error: "Parser runtime is unavailable on the current page."
           };
         }
 
-        let result = parse();
-        if (!isRecoverableLinkedInMessagingFailure(result)) {
-          return result;
-        }
-
-        nudgePageLifecycle();
-
-        const deadline = Date.now() + retryTimeoutMs;
-        while (Date.now() < deadline) {
-          await wait(retryDelayMs);
-          result = parse();
-
-          if (!isRecoverableLinkedInMessagingFailure(result)) {
-            return result;
-          }
-
-          nudgePageLifecycle();
-        }
-
-        return result;
+        return globalThis.ConverseParsing.parseCurrentPageWithRetry(
+          parserIdOverride,
+          retryDelayMs,
+          retryTimeoutMs
+        );
       },
       args: [LINKEDIN_MESSAGING_PARSER_ID, PARSE_RETRY_DELAY_MS, PARSE_RETRY_TIMEOUT_MS]
     });

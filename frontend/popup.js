@@ -5,10 +5,12 @@ const PARSE_RETRY_TIMEOUT_MS = 3500;
 const PARSER_FILES = [
   "frontend/content/parsing/runtime.js",
   "frontend/content/parsing/helpers.js",
+  "frontend/content/parsing/execute.js",
   "frontend/content/parsing/parsers/linkedin-profile.js",
   "frontend/content/parsing/parsers/linkedin-messaging.js",
   "frontend/content/parsing/parsers/job-posting.js"
 ];
+const SUGGESTION_INJECTION_FILE = "frontend/content/injection/suggestion-injection.js";
 
 const composerView = document.getElementById("composer-view");
 const resultsView = document.getElementById("results-view");
@@ -115,78 +117,18 @@ async function parseSourceTab(modeId = formState.modeId) {
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: sourceTabId },
     func: async (parserIdOverride, retryDelayMs, retryTimeoutMs) => {
-      const wait = (durationMs) => new Promise((resolve) => {
-        globalThis.setTimeout(resolve, durationMs);
-      });
-
-      const isRecoverableLinkedInMessagingFailure = (parseResult) => {
-        if (parseResult?.status !== "failed_to_parse_with_appropriate_methodology") {
-          return false;
-        }
-
-        if (parseResult?.parserId !== "linkedin-messaging") {
-          return false;
-        }
-
-        return /message list was not found|no linkedin messages were extracted/i.test(parseResult?.error ?? "");
-      };
-
-      const nudgePageLifecycle = () => {
-        const events = [
-          () => globalThis.dispatchEvent(new Event("focus")),
-          () => globalThis.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false })),
-          () => globalThis.dispatchEvent(new Event("online")),
-          () => document.dispatchEvent(new Event("visibilitychange"))
-        ];
-
-        for (const dispatchEvent of events) {
-          try {
-            dispatchEvent();
-          } catch (_error) {
-            // Best-effort only; parsing can continue without lifecycle nudges.
-          }
-        }
-      };
-
-      const parse = () => {
-        if (parserIdOverride && globalThis.ConverseParsing.parseDocumentWithParserId) {
-          return globalThis.ConverseParsing.parseDocumentWithParserId(
-            parserIdOverride,
-            globalThis.location?.href ?? "",
-            document
-          );
-        }
-
-        return globalThis.ConverseParsing.parseCurrentPage();
-      };
-
-      if (!globalThis.ConverseParsing?.parseCurrentPage) {
+      if (!globalThis.ConverseParsing?.parseCurrentPageWithRetry) {
         return {
           status: "failed_to_parse_with_appropriate_methodology",
           error: "Parser runtime is unavailable on the current page."
         };
       }
 
-      let result = parse();
-      if (!isRecoverableLinkedInMessagingFailure(result)) {
-        return result;
-      }
-
-      nudgePageLifecycle();
-
-      const deadline = Date.now() + retryTimeoutMs;
-      while (Date.now() < deadline) {
-        await wait(retryDelayMs);
-        result = parse();
-
-        if (!isRecoverableLinkedInMessagingFailure(result)) {
-          return result;
-        }
-
-        nudgePageLifecycle();
-      }
-
-      return result;
+      return globalThis.ConverseParsing.parseCurrentPageWithRetry(
+        parserIdOverride,
+        retryDelayMs,
+        retryTimeoutMs
+      );
     },
     args: [getModeConfig(modeId)?.parserId ?? null, PARSE_RETRY_DELAY_MS, PARSE_RETRY_TIMEOUT_MS]
   });
@@ -1308,153 +1250,22 @@ async function injectSuggestionIntoSourceTab(text) {
     throw new Error("Source tab id is unavailable.");
   }
 
+  await chrome.scripting.executeScript({
+    target: { tabId: sourceTabId },
+    files: [SUGGESTION_INJECTION_FILE]
+  });
+
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId: sourceTabId },
     func: (suggestionText) => {
-      function isVisible(element) {
-        if (!(element instanceof HTMLElement)) {
-          return false;
-        }
-
-        const style = window.getComputedStyle(element);
-        if (style.display === "none" || style.visibility === "hidden") {
-          return false;
-        }
-
-        const rect = element.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      }
-
-      function isEligibleInput(element) {
-        if (!(element instanceof HTMLElement) || !isVisible(element)) {
-          return false;
-        }
-
-        if (element instanceof HTMLTextAreaElement) {
-          return !element.disabled && !element.readOnly;
-        }
-
-        if (element instanceof HTMLInputElement) {
-          return !element.disabled && !element.readOnly && (!element.type || element.type === "text");
-        }
-
-        return element.isContentEditable;
-      }
-
-      function setInputValue(element, value) {
-        const prototype = element instanceof HTMLTextAreaElement
-          ? HTMLTextAreaElement.prototype
-          : HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
-
-        if (descriptor?.set) {
-          descriptor.set.call(element, value);
-          return;
-        }
-
-        element.value = value;
-      }
-
-      function setContentEditableValue(element, value) {
-        element.focus();
-
-        const selection = window.getSelection();
-        if (selection) {
-          const range = document.createRange();
-          range.selectNodeContents(element);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-
-        let inserted = false;
-
-        if (typeof document.execCommand === "function") {
-          try {
-            document.execCommand("selectAll", false, null);
-            inserted = document.execCommand("insertText", false, value);
-          } catch (error) {
-            inserted = false;
-          }
-        }
-
-        if (!inserted) {
-          const lines = value.split("\n");
-          element.replaceChildren();
-
-          lines.forEach((line, index) => {
-            if (index > 0) {
-              element.append(document.createElement("br"));
-            }
-
-            element.append(document.createTextNode(line));
-          });
-        }
-      }
-
-      function dispatchEditableEvents(element, value) {
-        element.dispatchEvent(new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertText",
-          data: value
-        }));
-        element.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-
-      function getTargetElement() {
-        const activeElement = document.activeElement;
-        if (isEligibleInput(activeElement)) {
-          return activeElement;
-        }
-
-        const selectors = [
-          ".msg-form__contenteditable[contenteditable='true']",
-          ".msg-form__contenteditable",
-          "[role='textbox'][contenteditable='true']",
-          "textarea:not([readonly]):not([disabled])",
-          "input[type='text']:not([readonly]):not([disabled])",
-          "[contenteditable='true']"
-        ];
-
-        for (const selector of selectors) {
-          const match = Array.from(document.querySelectorAll(selector)).find(isEligibleInput);
-          if (match) {
-            return match;
-          }
-        }
-
-        return null;
-      }
-
-      if (typeof suggestionText !== "string" || !suggestionText.trim()) {
+      if (!globalThis.ConverseSuggestionInjection?.injectSuggestion) {
         return {
           ok: false,
-          error: "Suggestion is empty."
+          error: "Suggestion injector is unavailable on the current page."
         };
       }
 
-      const target = getTargetElement();
-      if (!target) {
-        return {
-          ok: false,
-          error: "No editable message field was found on the page."
-        };
-      }
-
-      target.focus();
-
-      if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
-        setInputValue(target, suggestionText);
-        target.setSelectionRange?.(suggestionText.length, suggestionText.length);
-      } else {
-        setContentEditableValue(target, suggestionText);
-      }
-
-      dispatchEditableEvents(target, suggestionText);
-      target.scrollIntoView({ block: "nearest" });
-
-      return {
-        ok: true
-      };
+      return globalThis.ConverseSuggestionInjection.injectSuggestion(suggestionText);
     },
     args: [text]
   });
