@@ -1,5 +1,7 @@
 (() => {
   const LINKEDIN_MESSAGING_PARSER_ID = "linkedin-messaging";
+  const EVAL_EXAMPLES_ENDPOINT = "http://localhost:3000/api/eval_examples";
+  const CURRENT_USER_STORAGE_KEY = "current_user";
   const SELF_SENDER_NAME = "Quentin Glangetas";
   const SELF_RATING_LABELS = ["very poor", "poor", "neutral", "good", "very good"];
   const OTHER_RATING_LABELS = ["unhelpful", "confused", "neutral", "good", "very good"];
@@ -13,6 +15,8 @@
   ];
 
   const refreshButton = document.getElementById("refresh-button");
+  const saveExampleButton = document.getElementById("save-example-button");
+  const saveExampleButtonLabel = saveExampleButton?.querySelector(".button-label");
   const statusPill = document.getElementById("status-pill");
   const sourceLabel = document.getElementById("source-label");
   const statePanel = document.getElementById("state-panel");
@@ -26,7 +30,8 @@
     sourceTabId: sourceTabIdValue === null ? Number.NaN : Number(sourceTabIdValue),
     messageSelections: [],
     parseResult: null,
-    parseSequence: 0
+    parseSequence: 0,
+    saveSequence: 0
   };
 
   function updateUrlState() {
@@ -81,6 +86,7 @@
     summaryPanel.hidden = true;
     summaryPanel.replaceChildren();
     parseOutput.replaceChildren();
+    updateSaveExampleButton({ forceDisabled: true });
   }
 
   function normalizeErrorMessage(value, fallback = "Something went wrong.") {
@@ -176,6 +182,10 @@
     return index === 0 && isSelfSender(item?.sender) ? "intro" : "message";
   }
 
+  function isMessageIncluded(selection) {
+    return selection?.included !== false;
+  }
+
   function createMetaPill(value) {
     const pill = document.createElement("span");
     pill.className = "meta-pill";
@@ -246,6 +256,91 @@
 
   function getRatingLabel(labels, rating) {
     return labels[rating - 1] ?? "neutral";
+  }
+
+  function getParsedMessageOutput() {
+    const output = isPlainObject(state.parseResult?.output) ? state.parseResult.output : null;
+    return Array.isArray(output?.messages) ? output : null;
+  }
+
+  function getIncludedMessageCount(output = getParsedMessageOutput()) {
+    if (!output) {
+      return 0;
+    }
+
+    return output.messages.filter((_message, index) => (
+      isMessageIncluded(state.messageSelections[index])
+    )).length;
+  }
+
+  function canSaveExample() {
+    return state.parseResult?.status === "success"
+      && state.parseResult?.parserId === LINKEDIN_MESSAGING_PARSER_ID
+      && Boolean(getParsedMessageOutput())
+      && getIncludedMessageCount() > 0;
+  }
+
+  function updateSaveExampleButton({ label = "Save Example", forceDisabled = false } = {}) {
+    if (!saveExampleButton) {
+      return;
+    }
+
+    if (saveExampleButtonLabel) {
+      saveExampleButtonLabel.textContent = label;
+    }
+
+    saveExampleButton.disabled = forceDisabled || !canSaveExample();
+    saveExampleButton.classList.toggle("is-busy", label === "Saving");
+  }
+
+  function createProcessingControl(_item, index, selection, onChange) {
+    const control = document.createElement("section");
+    control.className = "message-control processing-control";
+
+    const label = document.createElement("p");
+    label.className = "control-label";
+    label.textContent = "api eval";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "switch-button";
+
+    const track = document.createElement("span");
+    track.className = "switch-track";
+    track.setAttribute("aria-hidden", "true");
+
+    const knob = document.createElement("span");
+    knob.className = "switch-knob";
+    track.append(knob);
+
+    const text = document.createElement("span");
+    text.className = "switch-button-label";
+
+    button.append(track, text);
+    button.addEventListener("click", () => {
+      selection.included = !isMessageIncluded(selection);
+      update();
+      onChange?.();
+    });
+
+    function update() {
+      const included = isMessageIncluded(selection);
+      control.dataset.value = included ? "process" : "ignore";
+      button.classList.toggle("is-on", included);
+      button.setAttribute("aria-pressed", String(included));
+      button.setAttribute(
+        "aria-label",
+        included
+          ? `message ${index + 1} will be processed`
+          : `message ${index + 1} will be ignored`
+      );
+      button.title = included ? "processed" : "ignored";
+      text.textContent = included ? "process" : "ignore";
+    }
+
+    update();
+    control.append(label, button);
+    return control;
   }
 
   function createRatingControl(item, index, selection) {
@@ -325,10 +420,19 @@
     return control;
   }
 
-  function createMessageControls(item, index, selection) {
+  function setMessageProcessingState(row, selection) {
+    const included = isMessageIncluded(selection);
+    row.classList.toggle("is-ignored-message", !included);
+    row.querySelectorAll(".category-button, .star-button").forEach((button) => {
+      button.disabled = !included;
+    });
+  }
+
+  function createMessageControls(item, index, selection, onProcessingChange) {
     const controls = document.createElement("aside");
     controls.className = "message-controls";
     controls.append(
+      createProcessingControl(item, index, selection, onProcessingChange),
       createCategoryControl(item, index, selection),
       createRatingControl(item, index, selection)
     );
@@ -338,6 +442,7 @@
   function renderMessageItem(item, index) {
     const messageRecord = isPlainObject(item) ? item : { message: String(item ?? "") };
     const selection = {
+      included: true,
       category: getDefaultCategory(messageRecord, index),
       rating: 3
     };
@@ -385,10 +490,13 @@
       main.append(extra);
     }
 
-    row.append(
-      main,
-      createMessageControls(messageRecord, index, selection)
-    );
+    const controls = createMessageControls(messageRecord, index, selection, () => {
+      setMessageProcessingState(row, selection);
+      updateSaveExampleButton();
+    });
+
+    row.append(main, controls);
+    setMessageProcessingState(row, selection);
 
     return row;
   }
@@ -472,6 +580,7 @@
       setStatus("failed", "error");
       setStatePanel(normalizeErrorMessage(normalized.error, "Parsing did not succeed."), "error");
       parseOutput.append(renderRawResult(normalized));
+      updateSaveExampleButton();
       return;
     }
 
@@ -479,6 +588,7 @@
       setStatus("wrong parser", "error");
       setStatePanel("This lookup window only supports LinkedIn message threads.", "error");
       parseOutput.append(renderRawResult(normalized));
+      updateSaveExampleButton();
       return;
     }
 
@@ -487,12 +597,229 @@
       setStatus("no messages", "error");
       setStatePanel("LinkedIn parsing succeeded, but no message array was returned.", "error");
       parseOutput.append(renderRawResult(normalized));
+      updateSaveExampleButton();
       return;
     }
 
     setStatus("parsed", "success");
     setStatePanel("");
     parseOutput.append(renderMessageArray(output.messages));
+    updateSaveExampleButton();
+  }
+
+  async function getStoredCurrentUser() {
+    const stored = await chrome.storage.local.get([CURRENT_USER_STORAGE_KEY]);
+    const userName = String(stored[CURRENT_USER_STORAGE_KEY] ?? "").trim();
+
+    if (!userName) {
+      throw new Error("Sign in before saving an eval example.");
+    }
+
+    return {
+      userName
+    };
+  }
+
+  function buildEvalExamplePayload(currentUser) {
+    const output = getParsedMessageOutput();
+    if (!output) {
+      throw new Error("No parsed messages are available to save.");
+    }
+
+    const recipientName = inferRecipientName(output, currentUser.userName);
+    const messages = output.messages.flatMap((message, index) => {
+      const selection = state.messageSelections[index] ?? {};
+      if (!isMessageIncluded(selection)) {
+        return [];
+      }
+
+      const rating = Number(selection.rating ?? 3);
+      const category = selection.category ?? getDefaultCategory(message, index);
+      const sentTime = message.datetime
+        || [message.date, message.time].filter(Boolean).join(" ")
+        || null;
+
+      return [{
+        message_order: index,
+        sender_name: String(message.sender ?? "").trim(),
+        sentTime: normalizeEvalMessageTime(sentTime),
+        body: String(message.message ?? "").trim(),
+        category,
+        rating
+      }];
+    });
+
+    if (messages.length === 0) {
+      throw new Error("Turn on at least one message before saving an eval example.");
+    }
+
+    return {
+      saved_at: new Date().toISOString(),
+      user_name: currentUser.userName,
+      recipient_name: recipientName,
+      source: "linkedin",
+      messages
+    };
+  }
+
+  function inferRecipientName(output, userName) {
+    const userNameKey = normalizeName(userName);
+    const senderCounts = new Map();
+
+    output.messages.forEach((message, index) => {
+      const senderName = String(message?.sender ?? "").trim();
+      const senderKey = normalizeName(senderName);
+
+      if (!senderName || !senderKey || senderKey === userNameKey) {
+        return;
+      }
+
+      const entry = senderCounts.get(senderKey) ?? {
+        count: 0,
+        firstIndex: index,
+        name: senderName
+      };
+      entry.count += 1;
+      senderCounts.set(senderKey, entry);
+    });
+
+    const [bestSender] = Array.from(senderCounts.values()).sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+
+      return left.firstIndex - right.firstIndex;
+    });
+
+    if (bestSender) {
+      return bestSender.name;
+    }
+
+    const parsedParticipantName = String(output.name ?? "").trim();
+    if (parsedParticipantName && normalizeName(parsedParticipantName) !== userNameKey) {
+      return parsedParticipantName;
+    }
+
+    throw new Error("Unable to infer the recipient name from this conversation.");
+  }
+
+  function normalizeEvalMessageTime(value) {
+    const text = String(value ?? "").replace(/\s+/g, " ").trim();
+    if (!text) {
+      return null;
+    }
+
+    const compactMatch = text.match(/^(?:sun|mon|tue|wed|thu|fri|sat)(\d{1,2})([a-z]{3})(\d{2}|\d{4})\s+(\d{1,2})(?::(\d{2}))?\s*([ap])m$/i);
+    if (compactMatch) {
+      const monthIndex = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11
+      }[compactMatch[2].toLowerCase()];
+
+      if (monthIndex !== undefined) {
+        const year = Number(compactMatch[3]);
+        const fullYear = year < 100 ? 2000 + year : year;
+        const meridiem = compactMatch[6].toLowerCase();
+        let hour = Number(compactMatch[4]);
+        const minute = Number(compactMatch[5] ?? 0);
+
+        if (hour === 12) {
+          hour = meridiem === "a" ? 0 : 12;
+        } else if (meridiem === "p") {
+          hour += 12;
+        }
+
+        return new Date(Date.UTC(fullYear, monthIndex, Number(compactMatch[1]), hour, minute, 0, 0)).toISOString();
+      }
+    }
+
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  async function readResponseBody(response) {
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (_error) {
+      return text;
+    }
+  }
+
+  async function saveExample() {
+    const sequence = ++state.saveSequence;
+    let payload;
+
+    try {
+      payload = buildEvalExamplePayload(await getStoredCurrentUser());
+    } catch (error) {
+      setStatus("save failed", "error");
+      setStatePanel(normalizeErrorMessage(error instanceof Error ? error.message : String(error)), "error");
+      updateSaveExampleButton();
+      return;
+    }
+
+    updateSaveExampleButton({ label: "Saving", forceDisabled: true });
+    setStatus("saving");
+
+    try {
+      const response = await fetch(EVAL_EXAMPLES_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const responseBody = await readResponseBody(response);
+
+      if (!response.ok) {
+        const message = isPlainObject(responseBody) && responseBody.detail
+          ? String(responseBody.detail)
+          : `Save failed with HTTP ${response.status}.`;
+        throw new Error(message);
+      }
+
+      if (sequence !== state.saveSequence) {
+        return;
+      }
+
+      updateSaveExampleButton({ label: "Saved" });
+      setStatus("saved", "success");
+      setStatePanel("");
+
+      window.setTimeout(() => {
+        if (sequence !== state.saveSequence) {
+          return;
+        }
+
+        updateSaveExampleButton();
+        if (canSaveExample()) {
+          setStatus("parsed", "success");
+        }
+      }, 1600);
+    } catch (error) {
+      if (sequence !== state.saveSequence) {
+        return;
+      }
+
+      setStatus("save failed", "error");
+      setStatePanel(normalizeErrorMessage(error instanceof Error ? error.message : String(error)), "error");
+      updateSaveExampleButton();
+    }
   }
 
   async function refreshParseResult() {
@@ -521,6 +848,10 @@
 
   refreshButton?.addEventListener("click", () => {
     refreshParseResult();
+  });
+
+  saveExampleButton?.addEventListener("click", () => {
+    saveExample();
   });
 
   window.addEventListener("load", () => {

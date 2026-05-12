@@ -7,9 +7,46 @@ from fastapi import APIRouter, Depends
 from .. import db
 from ..dependencies import get_current_user
 from ..serialization import to_api
+from ..users import normalize_username
 
 
 router = APIRouter()
+
+
+async def get_or_create_person_id_by_name(
+    user_id: str,
+    person_name: str,
+    source: str,
+) -> str:
+    full_name = normalize_username(person_name)
+    normalized_name = full_name.casefold()
+
+    existing = await db.fetch_one(
+        """
+        SELECT id
+        FROM persons
+        WHERE user_id = %s AND normalized_name = %s
+        LIMIT 1
+        """,
+        (user_id, normalized_name),
+    )
+    if existing:
+        return str(existing["id"])
+
+    created = await db.fetch_one(
+        """
+        INSERT INTO persons (
+          user_id, full_name, normalized_name, source_first_seen
+        )
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        """,
+        (user_id, full_name, normalized_name, source),
+    )
+    if created is None:
+        raise RuntimeError("Unable to resolve person.")
+
+    return str(created["id"])
 
 
 @router.get("/{person_id}/memory")
@@ -28,4 +65,3 @@ async def list_person_memory(
     )
 
     return {"memoryItems": to_api(rows)}
-

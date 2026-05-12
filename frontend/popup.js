@@ -1,5 +1,7 @@
 const DEFAULT_TONES = ["informal", "conversational"];
 const RESUME_STORAGE_KEY = "savedResume";
+const CURRENT_USER_STORAGE_KEY = "current_user";
+const CURRENT_USER_ID_STORAGE_KEY = "current_user_id";
 const PARSE_RETRY_DELAY_MS = 250;
 const PARSE_RETRY_TIMEOUT_MS = 3500;
 const PARSER_FILES = [
@@ -24,8 +26,10 @@ const llmModal = document.getElementById("llm-modal");
 const llmModalCloseButton = document.getElementById("llm-modal-close-button");
 const llmModalOpenButtons = Array.from(document.querySelectorAll(".llm-modal-open-button"));
 const parseTabOpenButtons = Array.from(document.querySelectorAll(".parse-tab-open-button"));
+const loginPageOpenButtons = Array.from(document.querySelectorAll(".login-page-open-button"));
 const modeSelects = Array.from(document.querySelectorAll("[data-mode-select]"));
 const sourceSiteBadges = Array.from(document.querySelectorAll("[data-source-site]"));
+const currentUserBadges = Array.from(document.querySelectorAll("[data-current-user]"));
 const debugModalBackdrop = document.getElementById("debug-modal-backdrop");
 const debugModal = document.getElementById("debug-modal");
 const debugModalCloseButton = document.getElementById("debug-modal-close-button");
@@ -253,6 +257,41 @@ async function renderSourceSiteBadge() {
     badge.textContent = displayText;
     badge.hidden = !siteLabel;
     badge.classList.toggle("is-away", Boolean(siteLabel && !isCurrentSource));
+  });
+}
+
+function getStoredCurrentUserDisplay(authState) {
+  const currentUser = typeof authState?.[CURRENT_USER_STORAGE_KEY] === "string"
+    ? authState[CURRENT_USER_STORAGE_KEY].trim()
+    : "";
+  const currentUserId = typeof authState?.[CURRENT_USER_ID_STORAGE_KEY] === "string"
+    ? authState[CURRENT_USER_ID_STORAGE_KEY].trim()
+    : "";
+
+  return {
+    currentUser,
+    currentUserId
+  };
+}
+
+async function renderCurrentUserBadge() {
+  const authState = await chrome.storage.local.get([
+    CURRENT_USER_STORAGE_KEY,
+    CURRENT_USER_ID_STORAGE_KEY
+  ]);
+  const { currentUser, currentUserId } = getStoredCurrentUserDisplay(authState);
+  const isLoggedIn = Boolean(currentUser && currentUserId);
+
+  currentUserBadges.forEach((badge) => {
+    badge.textContent = isLoggedIn ? currentUser : "";
+    badge.hidden = !isLoggedIn;
+    badge.title = currentUserId ? `user id ${currentUserId}` : currentUser;
+  });
+
+  loginPageOpenButtons.forEach((button) => {
+    button.classList.toggle("is-authenticated", isLoggedIn);
+    button.title = isLoggedIn ? `signed in as ${currentUser}` : "open login page";
+    button.setAttribute("aria-label", isLoggedIn ? `open login page, signed in as ${currentUser}` : "open login page");
   });
 }
 
@@ -749,6 +788,19 @@ async function openParseShowcaseTab() {
   const baseUrl = chrome.runtime.getURL("frontend/parse.html");
   const tabs = await chrome.tabs.query({});
   const existingTab = tabs.find((tab) => typeof tab.url === "string" && tab.url.startsWith(baseUrl));
+  const tab = Number.isInteger(existingTab?.id)
+    ? await chrome.tabs.update(existingTab.id, { active: true, url })
+    : await chrome.tabs.create({ active: true, url });
+
+  if (typeof tab?.windowId === "number") {
+    await chrome.windows.update(tab.windowId, { focused: true });
+  }
+}
+
+async function openLoginPageTab() {
+  const url = chrome.runtime.getURL("frontend/login.html");
+  const tabs = await chrome.tabs.query({});
+  const existingTab = tabs.find((tab) => typeof tab.url === "string" && tab.url.startsWith(url));
   const tab = Number.isInteger(existingTab?.id)
     ? await chrome.tabs.update(existingTab.id, { active: true, url })
     : await chrome.tabs.create({ active: true, url });
@@ -1466,6 +1518,16 @@ parseTabOpenButtons.forEach((button) => {
   });
 });
 
+loginPageOpenButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    try {
+      await openLoginPageTab();
+    } catch (error) {
+      setLlmStatus(error instanceof Error ? error.message : String(error), "error");
+    }
+  });
+});
+
 debugModalOpenButtons.forEach((button) => {
   button.addEventListener("click", () => {
     openDebugModal(button);
@@ -1557,6 +1619,7 @@ pickButtons.forEach((button) => {
 
 window.addEventListener("load", async () => {
   await renderSourceSiteBadge();
+  await renderCurrentUserBadge();
   populateModeOptions();
   populateModelOptions();
   updateSingleSelect(languageGroup, formState.language);
@@ -1598,6 +1661,12 @@ chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
   }
 
   renderSourceSiteBadge();
+});
+
+chrome.storage?.onChanged?.addListener((changes, areaName) => {
+  if (areaName === "local" && (changes[CURRENT_USER_STORAGE_KEY] || changes[CURRENT_USER_ID_STORAGE_KEY])) {
+    renderCurrentUserBadge();
+  }
 });
 
 window.addEventListener("keydown", (event) => {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -37,6 +38,27 @@ class ImportConversationRequest(ApiModel):
     messages: list[MessageInput] = Field(min_length=1)
 
 
+class LoginRequest(ApiModel):
+    username: str = Field(default="Quentin Glangetas", min_length=1, max_length=200)
+
+
+class EvalExampleMessage(ApiModel):
+    message_order: int
+    sender_name: str
+    body: str
+    rating: int = Field(ge=1, le=5)
+    category: str | None = None
+    sent_time: datetime | None = Field(alias="sentTime")
+
+
+class EvalExampleCreateRequest(ApiModel):  # completely wrong, it should give a list of messages mostly
+    saved_at: datetime = Field(default_factory=datetime.now)
+    source: str
+    user_name: str = Field(min_length=1)
+    recipient_name: str | None = Field(default=None)
+    messages: list[EvalExampleMessage] = Field(min_length=1)
+
+
 class FollowupGenerationRequest(ApiModel):
     person_id: UUID | None = Field(default=None, alias="personId")
     conversation_id: UUID | None = Field(default=None, alias="conversationId")
@@ -60,4 +82,3 @@ class MemorySearchRequest(ApiModel):
     conversation_id: UUID | None = Field(default=None, alias="conversationId")
     query: str = Field(min_length=1)
     limit: int = Field(default=10, ge=1, le=50)
-

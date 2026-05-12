@@ -36,7 +36,10 @@ async def connection() -> AsyncIterator[AsyncConnection]:
 
 
 async def fetch_one(query: str, params: Sequence[Any] = ()) -> dict[str, Any] | None:
-    async for conn in connection():
+    if pool is None:
+        raise RuntimeError("Database pool has not been opened.")
+
+    async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(query, params)
             return await cur.fetchone()
@@ -45,7 +48,10 @@ async def fetch_one(query: str, params: Sequence[Any] = ()) -> dict[str, Any] | 
 
 
 async def fetch_all(query: str, params: Sequence[Any] = ()) -> list[dict[str, Any]]:
-    async for conn in connection():
+    if pool is None:
+        raise RuntimeError("Database pool has not been opened.")
+
+    async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(query, params)
             rows = await cur.fetchall()

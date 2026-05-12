@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .config import settings
 from .loggers import api_logger, get_current_log_file_path
-from .routers import conversations, followups, health, memory, persons
+from .routers import auth, conversations, eval_examples, followups, health, memory, persons
 
 
 @asynccontextmanager
@@ -43,10 +43,12 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(conversations.router, prefix="/api/conversations", tags=["conversations"])
 app.include_router(persons.router, prefix="/api/persons", tags=["persons"])
 app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
 app.include_router(followups.router, prefix="/api/followups", tags=["followups"])
+app.include_router(eval_examples.router, prefix="/api/eval_examples", tags=["eval_examples"])
 
 
 if __name__ == "__main__":

@@ -96,31 +96,73 @@ h1 {
     transform 120ms ease;
 }
 
-.icon-button:hover:not(:disabled) {
+.toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.icon-button:hover:not(:disabled),
+.toolbar-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }
 
-.icon-button:disabled {
+.icon-button:disabled,
+.toolbar-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 .icon-button:focus-visible,
+.toolbar-button:focus-visible,
+.switch-button:focus-visible,
 .category-button:focus-visible,
 .star-button:focus-visible {
   outline: 3px solid rgba(98, 114, 164, 0.34);
   outline-offset: 2px;
 }
 
-.icon-button svg {
+.icon-button svg,
+.toolbar-button svg {
   width: 18px;
   height: 18px;
+  flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.toolbar-button.is-busy {
+  border-color: rgba(139, 233, 253, 0.36);
+  color: var(--cyan);
+}
+
+.button-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .source-strip {
@@ -308,8 +350,17 @@ h1 {
   background: rgba(20, 22, 33, 0.94);
 }
 
+.array-item.is-ignored-message {
+  border-color: rgba(255, 156, 184, 0.24);
+  background: rgba(20, 22, 33, 0.72);
+}
+
 .array-item-main {
   min-width: 0;
+}
+
+.array-item.is-ignored-message .array-item-main {
+  opacity: 0.58;
 }
 
 .array-item-title {
@@ -359,6 +410,81 @@ h1 {
   text-transform: lowercase;
 }
 
+.switch-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 156, 184, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 156, 184, 0.1);
+  color: #ffd3df;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.switch-button:hover {
+  background: rgba(255, 156, 184, 0.16);
+}
+
+.switch-button.is-on {
+  border-color: rgba(80, 250, 123, 0.34);
+  background: rgba(80, 250, 123, 0.12);
+  color: #c8ffd5;
+}
+
+.switch-button.is-on:hover {
+  background: rgba(80, 250, 123, 0.18);
+}
+
+.switch-track {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 156, 184, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transition: background-color 120ms ease;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  transition: transform 120ms ease;
+}
+
+.switch-button.is-on .switch-track {
+  background: rgba(80, 250, 123, 0.24);
+}
+
+.switch-button.is-on .switch-knob {
+  transform: translateX(16px);
+}
+
+.switch-button-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .category-button-group {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -390,10 +516,16 @@ h1 {
   text-transform: lowercase;
 }
 
-.category-button:hover,
-.star-button:hover {
+.category-button:hover:not(:disabled),
+.star-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
+}
+
+.category-button:disabled,
+.star-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .category-button.is-selected {

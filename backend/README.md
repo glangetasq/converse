@@ -28,6 +28,7 @@ psql postgresql://postgres:postgres@localhost:5432/convo_maker -f schema.sql
 ## Routes
 
 - `GET /health`
+- `POST /api/auth/login`
 - `POST /api/conversations/import`
 - `GET /api/conversations/{id}`
 - `GET /api/persons/{id}/memory`

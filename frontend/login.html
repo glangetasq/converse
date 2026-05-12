@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Converse Login</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup login-page">
+      <section class="login-panel" aria-labelledby="login-title">
+        <p class="eyebrow">Converse</p>
+        <h1 id="login-title" class="modal-title">login</h1>
+
+        <form id="login-form" class="login-form">
+          <section class="nested-group">
+            <label class="group-title input-label" for="login-username-input">username</label>
+            <input
+              id="login-username-input"
+              class="single-line-input"
+              type="text"
+              autocomplete="username"
+              spellcheck="false"
+              value="Quentin Glangetas">
+          </section>
+
+          <div class="button-row login-button-row">
+            <button id="login-submit-button" class="secondary-button primary-button" type="submit">login</button>
+          </div>
+
+          <p id="login-status-output" class="status-copy" role="status" aria-live="polite">ready</p>
+        </form>
+      </section>
+    </main>
+    <script src="login.js"></script>
+  </body>
+</html>
