@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -18,13 +19,24 @@ async def open_pool(database_url: str) -> None:
     global pool
     db_logger.info("Opening database pool")
     pool = AsyncConnectionPool(database_url, open=False, kwargs={"row_factory": dict_row})
-    await pool.open()
+    await pool.open(wait=True)
 
 
 async def close_pool() -> None:
+    global pool
     if pool is not None:
         db_logger.info("Closing database pool")
         await pool.close()
+        pool = None
+
+
+@asynccontextmanager
+async def open_database(database_url: str) -> AsyncIterator[None]:
+    await open_pool(database_url)
+    try:
+        yield
+    finally:
+        await close_pool()
 
 
 async def connection() -> AsyncIterator[AsyncConnection]:

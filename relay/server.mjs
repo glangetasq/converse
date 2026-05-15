@@ -3,12 +3,72 @@ import http from "node:http";
 const host = process.env.CONVO_RELAY_HOST || "127.0.0.1";
 const port = Number.parseInt(process.env.CONVO_RELAY_PORT || "8787", 10);
 const openAiKey = process.env.OPENAI_API_KEY;
-const upstreamUrl = "https://api.openai.com/v1/chat/completions";
+const anthropicKey = process.env.ANTHROPIC_API_KEY;
+const anthropicVersion = process.env.ANTHROPIC_VERSION || "2023-06-01";
 const maxBodyBytes = 1024 * 1024;
 
-if (!openAiKey) {
-  throw new Error("OPENAI_API_KEY is required before starting the relay.");
+if (!openAiKey && !anthropicKey) {
+  throw new Error("OPENAI_API_KEY or ANTHROPIC_API_KEY is required before starting the relay.");
 }
+
+const upstreamRoutes = new Map([
+  ["/v1/chat/completions", {
+    key: openAiKey,
+    keyName: "OPENAI_API_KEY",
+    name: "OpenAI Chat Completions",
+    upstreamUrl: "https://api.openai.com/v1/chat/completions",
+    buildHeaders: () => ({
+      "Authorization": `Bearer ${openAiKey}`,
+      "Content-Type": "application/json"
+    }),
+    enforceStoreFalse: true
+  }],
+  ["/openai/v1/chat/completions", {
+    key: openAiKey,
+    keyName: "OPENAI_API_KEY",
+    name: "OpenAI Chat Completions",
+    upstreamUrl: "https://api.openai.com/v1/chat/completions",
+    buildHeaders: () => ({
+      "Authorization": `Bearer ${openAiKey}`,
+      "Content-Type": "application/json"
+    }),
+    enforceStoreFalse: true
+  }],
+  ["/v1/responses", {
+    key: openAiKey,
+    keyName: "OPENAI_API_KEY",
+    name: "OpenAI Responses",
+    upstreamUrl: "https://api.openai.com/v1/responses",
+    buildHeaders: () => ({
+      "Authorization": `Bearer ${openAiKey}`,
+      "Content-Type": "application/json"
+    }),
+    enforceStoreFalse: true
+  }],
+  ["/openai/v1/responses", {
+    key: openAiKey,
+    keyName: "OPENAI_API_KEY",
+    name: "OpenAI Responses",
+    upstreamUrl: "https://api.openai.com/v1/responses",
+    buildHeaders: () => ({
+      "Authorization": `Bearer ${openAiKey}`,
+      "Content-Type": "application/json"
+    }),
+    enforceStoreFalse: true
+  }],
+  ["/anthropic/v1/messages", {
+    key: anthropicKey,
+    keyName: "ANTHROPIC_API_KEY",
+    name: "Anthropic Messages",
+    upstreamUrl: "https://api.anthropic.com/v1/messages",
+    buildHeaders: () => ({
+      "x-api-key": anthropicKey,
+      "anthropic-version": anthropicVersion,
+      "Content-Type": "application/json"
+    }),
+    enforceStoreFalse: false
+  }]
+]);
 
 function isAllowedOrigin(origin) {
   if (!origin) {
@@ -49,7 +109,7 @@ async function readRequestBody(request) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function normalizeRequestBody(requestBodyText) {
+function normalizeRequestBody(requestBodyText, { enforceStoreFalse }) {
   let payload;
   try {
     payload = JSON.parse(requestBodyText);
@@ -61,10 +121,9 @@ function normalizeRequestBody(requestBodyText) {
     throw new Error("Request body must be a JSON object.");
   }
 
-  return JSON.stringify({
-    ...payload,
-    store: false
-  });
+  return JSON.stringify(enforceStoreFalse
+    ? { ...payload, store: false }
+    : payload);
 }
 
 function getNetworkErrorMessage(error) {
@@ -84,17 +143,22 @@ function getNetworkErrorMessage(error) {
   return detailParts.join(": ");
 }
 
-async function handleChatCompletion(request, response) {
+async function handleRelayRequest(request, response, route) {
   const origin = request.headers.origin;
   if (!isAllowedOrigin(origin)) {
     writeJson(response, 403, { error: "Origin is not allowed." }, origin);
     return;
   }
 
+  if (!route.key) {
+    writeJson(response, 503, { error: `${route.keyName} is not configured for this relay.` }, origin);
+    return;
+  }
+
   let requestBody;
   try {
     const requestBodyText = await readRequestBody(request);
-    requestBody = normalizeRequestBody(requestBodyText);
+    requestBody = normalizeRequestBody(requestBodyText, route);
   } catch (error) {
     writeJson(response, 400, { error: error instanceof Error ? error.message : String(error) }, origin);
     return;
@@ -102,18 +166,15 @@ async function handleChatCompletion(request, response) {
 
   let upstreamResponse;
   try {
-    upstreamResponse = await fetch(upstreamUrl, {
+    upstreamResponse = await fetch(route.upstreamUrl, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openAiKey}`,
-        "Content-Type": "application/json"
-      },
+      headers: route.buildHeaders(),
       body: requestBody
     });
   } catch (error) {
     const networkErrorMessage = getNetworkErrorMessage(error);
-    console.error(`[relay] OpenAI network error: ${networkErrorMessage}`);
-    writeJson(response, 502, { error: `Unable to reach OpenAI from the local relay. ${networkErrorMessage}` }, origin);
+    console.error(`[relay] ${route.name} network error: ${networkErrorMessage}`);
+    writeJson(response, 502, { error: `Unable to reach ${route.name} from the local relay. ${networkErrorMessage}` }, origin);
     return;
   }
 
@@ -134,6 +195,7 @@ async function handleChatCompletion(request, response) {
 
 const server = http.createServer(async (request, response) => {
   const origin = request.headers.origin;
+  const requestUrl = new URL(request.url || "/", `http://${host}:${port}`);
 
   if (request.method === "OPTIONS") {
     if (!isAllowedOrigin(origin)) {
@@ -153,17 +215,22 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "GET" && request.url === "/health") {
+  if (request.method === "GET" && requestUrl.pathname === "/health") {
     writeJson(response, 200, {
       ok: true,
       relay: "convo-maker",
-      upstream: "openai-chat-completions"
+      upstreams: Array.from(upstreamRoutes.entries()).map(([path, route]) => ({
+        path,
+        name: route.name,
+        configured: Boolean(route.key)
+      }))
     }, origin);
     return;
   }
 
-  if (request.method === "POST" && request.url === "/v1/chat/completions") {
-    await handleChatCompletion(request, response);
+  const route = upstreamRoutes.get(requestUrl.pathname);
+  if (request.method === "POST" && route) {
+    await handleRelayRequest(request, response, route);
     return;
   }
 

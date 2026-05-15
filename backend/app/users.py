@@ -41,3 +41,15 @@ async def get_or_create_user_by_name(user_name: str) -> dict[str, Any]:
 async def get_or_create_user_id_by_name(user_name: str) -> str:
     user = await get_or_create_user_by_name(user_name)
     return str(user["id"])
+
+
+async def get_user_id_to_name_dict() -> dict[str, str]:
+    rows = await db.fetch_all(
+        """
+        SELECT id, display_name AS name
+        FROM users
+        ORDER BY display_name, id
+        """
+    )
+
+    return {str(row["id"]): row["name"] or "" for row in rows}

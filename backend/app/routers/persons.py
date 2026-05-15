@@ -49,6 +49,18 @@ async def get_or_create_person_id_by_name(
     return str(created["id"])
 
 
+async def get_person_id_to_name_dict() -> dict[str, str]:
+    rows = await db.fetch_all(
+        """
+        SELECT id, full_name AS name
+        FROM persons
+        ORDER BY full_name, id
+        """,
+    )
+
+    return {str(row["id"]): row["name"] or "" for row in rows}
+
+
 @router.get("/{person_id}/memory")
 async def list_person_memory(
     person_id: str,
