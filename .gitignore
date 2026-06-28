@@ -9,6 +9,9 @@
 *apikey*
 relay/.local/
 
+# Parser debug captures (sent-to-Claude dumps)
+captures/
+
 # Local databases and data dumps
 *.db
 *.db-*
@@ -18,6 +21,16 @@ relay/.local/
 *.sqlite3-*
 *.dump
 *.sql.gz
+
+# code-plan (local plans + web-server runtime files)
+.code-plan/
+
+# IDE + tooling artifacts
+.idea/
+.playwright-mcp/
+
+# macOS
+.DS_Store
 
 # Logs and runtime output
 logs/
