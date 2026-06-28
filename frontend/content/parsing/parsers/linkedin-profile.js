@@ -34,6 +34,13 @@
     return /^(?:contact info|message|more|follow|connect|open to|see more|see less|show all .*?)$/i.test(text);
   }
 
+  function isChromeText(text) {
+    // Global LinkedIn navigation chrome (e.g. the notification bell) renders its own
+    // headings outside the profile <main>, so guard against them leaking into fields.
+    return /^\d*\s*notifications?$/i.test(text)
+      || /^(?:he|she|they)\/(?:him|her|them)$/i.test(text);
+  }
+
   function isMetricText(text) {
     return /\bfollowers?\b/i.test(text)
       || /\bconnections?\b/i.test(text)
@@ -45,6 +52,7 @@
       || text === "·"
       || isConnectionDegreeText(text)
       || isActionText(text)
+      || isChromeText(text)
       || isMetricText(text)
       || /^https?:\/\//i.test(text)
       || helpers.isLikelyPresenceText(text);
@@ -83,10 +91,23 @@
       return preferredMatch;
     }
 
-    return Array.from(document.querySelectorAll("main h1, main h2, h1, h2, h3")).find((candidate) => {
-      const text = helpers.getNormalizedInnerText(candidate);
-      return text && !isNoiseText(text);
-    }) ?? null;
+    // querySelectorAll returns matches in document order, not selector order, so scope to
+    // <main> first. Otherwise global nav headings (e.g. the "0 notifications" bell, which
+    // renders as an <h2> before <main>) win and the real name leaks into other fields.
+    const searchRoots = [document.querySelector("main"), document].filter(Boolean);
+
+    for (const root of searchRoots) {
+      const match = Array.from(root.querySelectorAll("h1, h2, h3")).find((candidate) => {
+        const text = helpers.getNormalizedInnerText(candidate);
+        return text && !isNoiseText(text);
+      });
+
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
   }
 
   function findHeaderRoot(nameElement) {
@@ -179,8 +200,13 @@
     return candidates.find((text) => text.length >= 30) ?? candidates[0] ?? null;
   }
 
+  function cleanName(fullName) {
+    // The name heading often carries a trailing connection degree (e.g. "Jane Doe · 1st").
+    return fullName.replace(/\s*·\s*(?:1st|2nd|3rd|\d+(?:st|nd|rd|th))\s*$/i, "").trim();
+  }
+
   function splitName(fullName) {
-    const parts = fullName.split(/\s+/).filter(Boolean);
+    const parts = cleanName(fullName).split(/\s+/).filter(Boolean);
     if (parts.length === 0) {
       return {
         firstName: null,

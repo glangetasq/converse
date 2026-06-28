@@ -473,6 +473,17 @@ body {
   color: #ff9cb8;
 }
 
+.debug-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0 4px;
+}
+
+.debug-actions .ghost-button {
+  padding: 9px 16px;
+  font-size: 13px;
+}
+
 .login-page {
   width: min(100%, 560px);
   min-height: 100vh;

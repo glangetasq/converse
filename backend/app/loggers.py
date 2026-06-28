@@ -148,6 +148,7 @@ def _record_module_name(record: logging.LogRecord) -> str:
 api_logger = get_logger("api")
 conversations_logger = get_logger("conversations")
 db_logger = get_logger("db")
+debug_logger = get_logger("debug")
 eval_logger = get_logger("eval")
 followups_logger = get_logger("followups")
 memory_logger = get_logger("memory")
@@ -160,6 +161,7 @@ __all__ = [
     "configure_logging",
     "conversations_logger",
     "db_logger",
+    "debug_logger",
     "eval_logger",
     "followups_logger",
     "get_current_log_file_path",

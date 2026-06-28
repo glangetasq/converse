@@ -15,8 +15,6 @@ class PersonInput(ApiModel):
     full_name: str | None = Field(default=None, alias="fullName")
     email: EmailStr | None = None
     linkedin_url: HttpUrl | None = Field(default=None, alias="linkedinUrl")
-    company: str | None = None
-    role_title: str | None = Field(default=None, alias="roleTitle")
 
 
 class MessageInput(ApiModel):
@@ -82,3 +80,10 @@ class MemorySearchRequest(ApiModel):
     conversation_id: UUID | None = Field(default=None, alias="conversationId")
     query: str = Field(min_length=1)
     limit: int = Field(default=10, ge=1, le=50)
+
+
+class ParseDumpRequest(ApiModel):
+    # `result` is the parsed profile JSON; kept as Any so any parser shape passes through verbatim.
+    result: Any
+    label: str | None = None
+    source_url: str | None = Field(default=None, alias="sourceUrl")

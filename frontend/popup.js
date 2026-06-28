@@ -4,6 +4,7 @@ const CURRENT_USER_STORAGE_KEY = "current_user";
 const CURRENT_USER_ID_STORAGE_KEY = "current_user_id";
 const PARSE_RETRY_DELAY_MS = 250;
 const PARSE_RETRY_TIMEOUT_MS = 3500;
+const PARSE_DUMP_ENDPOINT = "http://localhost:3000/api/debug/parse_dump";
 const PARSER_FILES = [
   "frontend/content/parsing/runtime.js",
   "frontend/content/parsing/helpers.js",
@@ -41,6 +42,7 @@ const debugPromptPanel = document.getElementById("debug-prompt-panel");
 const debugParseOutput = document.getElementById("debug-parse-output");
 const debugPromptOutput = document.getElementById("debug-prompt-output");
 const debugStatusOutput = document.getElementById("debug-status-output");
+const saveProfileJsonButton = document.getElementById("save-profile-json-button");
 const configurationToggle = document.getElementById("configuration-toggle");
 const configurationPanel = document.getElementById("configuration-panel");
 const directionsToggle = document.getElementById("directions-toggle");
@@ -560,6 +562,45 @@ function setDebugStatus(message, tone = "muted") {
   debugStatusOutput.textContent = message;
   debugStatusOutput.classList.toggle("is-success", tone === "success");
   debugStatusOutput.classList.toggle("is-error", tone === "error");
+}
+
+async function saveProfileJson() {
+  if (!saveProfileJsonButton) {
+    return;
+  }
+
+  saveProfileJsonButton.disabled = true;
+  setDebugStatus("Parsing profile…");
+
+  try {
+    const parseResult = await parseSourceTab();
+    if (parseResult?.status !== "success") {
+      setDebugStatus("Parse did not succeed — open a LinkedIn profile and retry.", "error");
+      return;
+    }
+
+    const output = parseResult.output ?? parseResult;
+    const label = [output?.first_name, output?.last_name].filter(Boolean).join(" ").trim()
+      || parseResult.parserId
+      || "profile";
+
+    const response = await fetch(PARSE_DUMP_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ result: output, label, source_url: parseResult.url ?? sourceUrl ?? null })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Save failed with HTTP ${response.status}.`);
+    }
+
+    const body = await response.json().catch(() => null);
+    setDebugStatus(body?.path ? `Saved → ${body.path}` : "Saved.", "success");
+  } catch (error) {
+    setDebugStatus(`Could not save. ${normalizeErrorMessage(error instanceof Error ? error.message : String(error))}`, "error");
+  } finally {
+    saveProfileJsonButton.disabled = false;
+  }
 }
 
 function getLlmSettingsFromInputs() {
@@ -1568,6 +1609,10 @@ debugParseTab?.addEventListener("click", () => {
 
 debugPromptTab?.addEventListener("click", () => {
   setDebugTab("prompt");
+});
+
+saveProfileJsonButton?.addEventListener("click", () => {
+  saveProfileJson();
 });
 
 copyButtons.forEach((button) => {
