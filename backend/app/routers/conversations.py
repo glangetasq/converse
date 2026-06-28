@@ -31,8 +31,6 @@ def _person_values(person: PersonInput, user_id: str, source: str) -> tuple[Any,
         full_name.lower() if full_name else None,
         str(person.linkedin_url) if person.linkedin_url else None,
         str(person.email) if person.email else None,
-        person.company,
-        person.role_title,
         source,
     )
 
@@ -73,9 +71,9 @@ async def _find_or_create_person(
             """
             INSERT INTO persons (
               user_id, full_name, normalized_name, linkedin_url, email,
-              company, role_title, source_first_seen
+              source_first_seen
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *
             """,
             _person_values(person, user_id, source),

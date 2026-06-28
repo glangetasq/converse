@@ -71,7 +71,7 @@ async def list_person_memory(
         SELECT *
         FROM memory_items
         WHERE user_id = %s AND person_id = %s
-        ORDER BY importance_score DESC, created_at DESC
+        ORDER BY created_at DESC
         """,
         (user["id"], person_id),
     )

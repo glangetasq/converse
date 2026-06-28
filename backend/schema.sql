@@ -15,8 +15,6 @@ CREATE TABLE IF NOT EXISTS persons (
   normalized_name text,
   linkedin_url text,
   email text,
-  company text,
-  role_title text,
   source_first_seen text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -24,6 +22,30 @@ CREATE TABLE IF NOT EXISTS persons (
 
 CREATE INDEX IF NOT EXISTS persons_user_email_idx ON persons(user_id, email);
 CREATE INDEX IF NOT EXISTS persons_user_linkedin_idx ON persons(user_id, linkedin_url);
+
+-- Re-processable source of truth for curated facts: append-only raw snapshots.
+-- Recipient LinkedIn profiles (person_id set) AND the user's own resume/projects/notes
+-- (person_id NULL). The parser output (or authored markdown) is stored verbatim in
+-- `content`; atomic, embedded facts are derived into memory_items, which point back here
+-- via source_document_id so we can re-atomize/re-embed without re-scraping.
+CREATE TABLE IF NOT EXISTS source_documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  person_id uuid REFERENCES persons(id) ON DELETE CASCADE,
+  kind text NOT NULL,                 -- 'linkedin_profile' | 'self_profile' | 'resume' | 'note'
+  source text NOT NULL,               -- 'linkedin' | 'manual' | 'resume_import'
+  source_url text,
+  content jsonb NOT NULL,             -- parser JSON verbatim, or {"markdown": "..."} for free text
+  raw_text text,                      -- optional flattened text (debug + future hybrid full-text search)
+  content_hash text NOT NULL,         -- skip ingesting identical re-scrapes
+  captured_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS source_documents_user_person_idx
+  ON source_documents(user_id, person_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS source_documents_user_content_hash_idx
+  ON source_documents(user_id, content_hash);
 
 CREATE TABLE IF NOT EXISTS conversations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -69,18 +91,13 @@ CREATE TABLE IF NOT EXISTS memory_items (
   person_id uuid REFERENCES persons(id) ON DELETE SET NULL,
   conversation_id uuid REFERENCES conversations(id) ON DELETE SET NULL,
   message_id uuid REFERENCES messages(id) ON DELETE SET NULL,
+  source_document_id uuid REFERENCES source_documents(id) ON DELETE CASCADE,
   memory_type text NOT NULL,
   content text NOT NULL,
   content_hash text NOT NULL,
-  importance_score real NOT NULL DEFAULT 0.5,
-  confidence_score real NOT NULL DEFAULT 1,
   source text NOT NULL,
-  valid_from timestamptz NOT NULL DEFAULT now(),
-  valid_until timestamptz,
-  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   embedding vector(1536),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS memory_items_user_person_idx
@@ -88,6 +105,13 @@ CREATE INDEX IF NOT EXISTS memory_items_user_person_idx
 
 CREATE UNIQUE INDEX IF NOT EXISTS memory_items_user_content_hash_idx
   ON memory_items(user_id, content_hash);
+
+CREATE INDEX IF NOT EXISTS memory_items_source_document_idx
+  ON memory_items(source_document_id);
+
+-- Approximate-nearest-neighbour index for retrieval (cosine distance: embedding <=> query).
+CREATE INDEX IF NOT EXISTS memory_items_embedding_hnsw_idx
+  ON memory_items USING hnsw (embedding vector_cosine_ops);
 
 CREATE TABLE IF NOT EXISTS followup_generations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

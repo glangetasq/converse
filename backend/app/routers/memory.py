@@ -48,7 +48,7 @@ async def search_memory(
         SELECT *
         FROM memory_items
         WHERE {" AND ".join(conditions)}
-        ORDER BY importance_score DESC, created_at DESC
+        ORDER BY created_at DESC
         LIMIT %s
         """,
         params,
