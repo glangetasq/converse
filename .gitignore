@@ -9,9 +9,6 @@
 *apikey*
 relay/.local/
 
-# Parser debug captures (sent-to-Claude dumps)
-captures/
-
 # Local databases and data dumps
 *.db
 *.db-*
