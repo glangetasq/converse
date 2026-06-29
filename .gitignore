@@ -36,7 +36,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Personal documents
+# Personal documents (private self-profile / capture notes)
+captures/
 *resume*
 *Resume*
 *résumé*

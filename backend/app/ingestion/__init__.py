@@ -13,9 +13,11 @@ from psycopg import AsyncConnection
 
 from .base import IngestResult, MemoryDraft, ParsedSource, SourceIngestor
 from .linkedin_profile import LinkedInProfileIngestor
+from .self_profile import SelfProfileIngestor
 
 _INGESTORS: list[SourceIngestor] = [
     LinkedInProfileIngestor(),
+    SelfProfileIngestor(),
 ]
 
 _BY_PARSER_ID: dict[str, SourceIngestor] = {ing.parser_id: ing for ing in _INGESTORS}
