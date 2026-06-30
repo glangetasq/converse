@@ -24,15 +24,14 @@ from pathlib import Path
 
 from .. import db
 from ..config import settings
-from ..models import LoginRequest
-from ..users import get_or_create_user_id_by_name
+from ..users import get_or_create_dev_user_id, get_or_create_user_id_by_name
 from . import get_by_kind
 from .base import content_hash
 
-# Default owner: the codebase's canonical current user (single source of truth),
-# the same user that owns the eval corpus + recipient profiles, so the self-facts
-# (person_id NULL) retrieve alongside a recipient's person-scoped facts.
-DEFAULT_USER_NAME: str = LoginRequest.model_fields["username"].default
+# Default owner: the canonical local-dev account — the same user that owns the
+# eval corpus + ingested recipient profiles — so the self-facts (person_id NULL)
+# retrieve alongside a recipient's person-scoped facts. Decoupled from any human
+# sender name; override with --user-name / --user-id only for ad-hoc seeding.
 
 # Private, gitignored. Repo root is four parents up from this module.
 DEFAULT_PROFILE_PATH = Path(__file__).resolve().parents[3] / "captures" / "self_profile.md"
@@ -46,7 +45,7 @@ def _parse_args() -> argparse.Namespace:
         default=DEFAULT_PROFILE_PATH,
         help=f"self-profile markdown to ingest (default: {DEFAULT_PROFILE_PATH})",
     )
-    parser.add_argument("--user-name", default=DEFAULT_USER_NAME, help="user to own the self-profile")
+    parser.add_argument("--user-name", default=None, help="own the self-profile by name (default: local-dev user)")
     parser.add_argument("--user-id", help="own the self-profile by user id (overrides --user-name)")
     parser.add_argument("--no-atomize", action="store_true", help="ingest the document only; skip memory build")
     parser.add_argument("--dry-run", action="store_true", help="show the memory drafts; write nothing")
@@ -66,7 +65,9 @@ def _read_profile(path: Path) -> str:
 async def _resolve_user_id(args: argparse.Namespace) -> str:
     if args.user_id:
         return args.user_id
-    return await get_or_create_user_id_by_name(args.user_name)
+    if args.user_name:
+        return await get_or_create_user_id_by_name(args.user_name)
+    return await get_or_create_dev_user_id()
 
 
 async def main() -> None:

@@ -4,26 +4,12 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from . import db
-from .config import settings
 from .serialization import to_api
+from .users import get_or_create_dev_user
 
 
 async def get_current_user() -> dict[str, Any]:
-    row = await db.fetch_one(
-        """
-        INSERT INTO users (email, display_name)
-        VALUES (%s, %s)
-        ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name
-        RETURNING id, email, display_name, created_at
-        """,
-        (settings.local_dev_user_email, "Local Dev User"),
-    )
-
-    if row is None:
-        raise RuntimeError("Unable to resolve local development user.")
-
-    return to_api(row)
+    return to_api(await get_or_create_dev_user())
 
 
 def jsonb(value: Any) -> Jsonb:

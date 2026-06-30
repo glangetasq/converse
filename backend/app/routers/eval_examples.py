@@ -11,7 +11,7 @@ from psycopg.types.json import Jsonb
 from ..loggers import eval_logger
 from ..models import EvalExampleCreateRequest
 from .persons import get_or_create_person_id_by_name
-from ..users import get_or_create_user_id_by_name, normalize_username
+from ..users import get_or_create_dev_user_id, normalize_username
 from .. import db
 
 router = APIRouter()
@@ -49,7 +49,11 @@ def is_user_sender(user_name: str, sender_name: str | None) -> bool:
 
 
 async def generate_examples(payload: EvalExampleCreateRequest) -> list[EvalExampleSqlRow]:
-    user_id = await get_or_create_user_id_by_name(payload.user_name)
+    # The account is the canonical local-dev user, decoupled from the human sender
+    # name: payload.user_name stays the LinkedIn sender ("Quentin Glangetas") used
+    # only by is_user_sender to detect the user's own messages (ground truth), while
+    # the corpus is owned by the dev user so its keys line up with ingested profiles.
+    user_id = await get_or_create_dev_user_id()
     recipient_id = (
         await get_or_create_person_id_by_name(user_id, payload.recipient_name, payload.source)
         if payload.recipient_name
