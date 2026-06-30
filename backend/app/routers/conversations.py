@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 from .. import db
 from ..dependencies import get_current_user
 from ..models import ImportConversationRequest, MessageInput, PersonInput
+from ..persons_service import find_or_create_person
 from ..serialization import to_api
 
 
@@ -23,18 +24,6 @@ def _parse_datetime(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def _person_values(person: PersonInput, user_id: str, source: str) -> tuple[Any, ...]:
-    full_name = person.full_name.strip() if person.full_name else None
-    return (
-        user_id,
-        full_name,
-        full_name.lower() if full_name else None,
-        str(person.linkedin_url) if person.linkedin_url else None,
-        str(person.email) if person.email else None,
-        source,
-    )
-
-
 async def _find_or_create_person(
     conn: AsyncConnection,
     user_id: str,
@@ -44,41 +33,14 @@ async def _find_or_create_person(
     if person is None:
         return None
 
-    email = str(person.email) if person.email else None
-    linkedin_url = str(person.linkedin_url) if person.linkedin_url else None
-
-    if email or linkedin_url:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT *
-                FROM persons
-                WHERE user_id = %s
-                  AND (
-                    (%s IS NOT NULL AND email = %s)
-                    OR (%s IS NOT NULL AND linkedin_url = %s)
-                  )
-                LIMIT 1
-                """,
-                (user_id, email, email, linkedin_url, linkedin_url),
-            )
-            existing = await cur.fetchone()
-            if existing:
-                return existing
-
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            INSERT INTO persons (
-              user_id, full_name, normalized_name, linkedin_url, email,
-              source_first_seen
-            )
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            _person_values(person, user_id, source),
-        )
-        return await cur.fetchone()
+    return await find_or_create_person(
+        conn,
+        user_id,
+        source=source,
+        full_name=person.full_name,
+        linkedin_url=str(person.linkedin_url) if person.linkedin_url else None,
+        email=str(person.email) if person.email else None,
+    )
 
 
 def _conversation_dates(messages: list[MessageInput]) -> tuple[datetime | None, datetime | None]:

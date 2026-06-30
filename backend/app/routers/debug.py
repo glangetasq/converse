@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..captures import captures_dir, slugify, unique_path
+from .. import db, ingestion
+from ..dependencies import get_current_user
 from ..loggers import debug_logger
 from ..models import ParseDumpRequest
 
@@ -13,15 +13,34 @@ router = APIRouter()
 
 
 @router.post("/parse_dump", status_code=status.HTTP_201_CREATED)
-async def dump_parse_result(payload: ParseDumpRequest) -> dict[str, Any]:
-    """Save a parsed LinkedIn profile's JSON to a file on disk for Claude to read."""
-    directory = captures_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+async def dump_parse_result(
+    payload: ParseDumpRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Ingest a parsed profile into persons + source_documents."""
+    if not ingestion.supports(payload.parser_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No ingester registered for parser_id {payload.parser_id!r}.",
+        )
 
-    target = unique_path(directory, f"{slugify(payload.label)}.json")
-    serialized = json.dumps(payload.result, indent=2, ensure_ascii=False, default=str) + "\n"
-    target.write_text(serialized, encoding="utf-8")
+    async for conn in db.connection():
+        async with conn.transaction():
+            ingested = await ingestion.ingest(
+                conn,
+                user["id"],
+                parser_id=payload.parser_id,
+                result=payload.result,
+                source_url=payload.source_url,
+            )
 
-    debug_logger.info(f"Saved parse dump -> {target}")
+    debug_logger.info(
+        f"Ingested {payload.parser_id}: {ingested.status} "
+        f"(document={ingested.source_document_id}, person={ingested.person_id})"
+    )
 
-    return {"status": "saved", "filename": target.name, "path": str(target)}
+    return {
+        "status": ingested.status,
+        "sourceDocumentId": ingested.source_document_id,
+        "personId": ingested.person_id,
+    }

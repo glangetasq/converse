@@ -85,5 +85,7 @@ class MemorySearchRequest(ApiModel):
 class ParseDumpRequest(ApiModel):
     # `result` is the parsed profile JSON; kept as Any so any parser shape passes through verbatim.
     result: Any
+    # `parser_id` selects the ingester (e.g. 'linkedin-profile'); `label` is just the filename hint.
+    parser_id: str | None = Field(default=None, alias="parserId")
     label: str | None = None
     source_url: str | None = Field(default=None, alias="sourceUrl")

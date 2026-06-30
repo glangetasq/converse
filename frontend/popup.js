@@ -587,7 +587,7 @@ async function saveProfileJson() {
     const response = await fetch(PARSE_DUMP_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ result: output, label, source_url: parseResult.url ?? sourceUrl ?? null })
+      body: JSON.stringify({ result: output, parserId: parseResult.parserId, label, source_url: parseResult.url ?? sourceUrl ?? null })
     });
 
     if (!response.ok) {
@@ -595,7 +595,8 @@ async function saveProfileJson() {
     }
 
     const body = await response.json().catch(() => null);
-    setDebugStatus(body?.path ? `Saved → ${body.path}` : "Saved.", "success");
+    const ingestMessage = body?.status === "duplicate" ? "Already saved (duplicate)." : "Profile saved.";
+    setDebugStatus(ingestMessage, "success");
   } catch (error) {
     setDebugStatus(`Could not save. ${normalizeErrorMessage(error instanceof Error ? error.message : String(error))}`, "error");
   } finally {
