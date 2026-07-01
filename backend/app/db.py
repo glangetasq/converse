@@ -73,11 +73,13 @@ async def fetch_all(query: str, params: Sequence[Any] = ()) -> list[dict[str, An
 
 
 async def init_schema() -> None:
-    schema_path = Path(__file__).resolve().parents[1] / "schema.sql"
-    sql = schema_path.read_text(encoding="utf-8")
-    db_logger.info("Initializing database schema from %s", schema_path)
+    sql_dir = Path(__file__).resolve().parents[1] / "sql"
+    files = sorted(sql_dir.glob("*.sql"))   # numeric prefixes order FK dependencies
+    db_logger.info("Initializing database schema from %s (%d files)", sql_dir, len(files))
 
     async for conn in connection():
         async with conn.cursor() as cur:
-            await cur.execute(sql)
+            for path in files:
+                db_logger.info("Applying %s", path.name)
+                await cur.execute(path.read_text(encoding="utf-8"))
         await conn.commit()
