@@ -9,6 +9,7 @@ import numpy as np
 
 from . import db
 from .llm.embeddings import get_embedder
+from .utils import render_thread
 
 
 # --- params -----------------------------------------------------------------------
@@ -99,13 +100,7 @@ def build_query_text(
     recent_n: int = DEFAULT_RECENT_N,
 ) -> str:
     """Render the recent thread tail into a single string to embed (Channel R)."""
-    thread = thread[-recent_n:]
-    query_text = []
-
-    for message in thread:
-        query_text.append(f"{message['sender_name']} said:\n{message['body']}")
-
-    return "\n".join(query_text)
+    return render_thread(thread, fmt="{sender_name} said:\n{body}", recent_n=recent_n)
 
 
 async def embed_query(text: str) -> list[float]:
