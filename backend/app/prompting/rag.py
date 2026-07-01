@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
-from ..memory_search import DEFAULT_K, RetrievedFact, retrieve_facts_for_thread
+from ..retrieval import RetrievalConfig, RetrievedFact, retrieve_facts_for_thread
 from .builder import Augmentor
 from .context import PromptContext
 
@@ -12,11 +11,6 @@ FACTS_HEADER = "Relevant background:"
 
 def _bullets(header: str, contents: list[str]) -> str:
     return header + "\n" + "\n".join(f"- {content}" for content in contents)
-
-
-@dataclass(frozen=True)
-class RetrievalConfig:
-    k: int = DEFAULT_K   # retrieve_facts_for_thread exposes no other knob
 
 
 class RagAugmentor(Augmentor):
@@ -42,7 +36,7 @@ class RagAugmentor(Augmentor):
             context.meta["user_id"],
             context.meta["person_id"],
             context.thread,
-            k=self.config.k,
+            config=self.config,
         )
 
     @staticmethod

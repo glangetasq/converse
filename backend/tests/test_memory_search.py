@@ -9,7 +9,7 @@ from unittest import mock
 import numpy as np
 
 from app import db
-from app import memory_search as ms
+from app.retrieval import search as ms
 
 
 def make_fact(
@@ -77,18 +77,6 @@ class ScoredFactTests(unittest.TestCase):
         self.assertEqual(sf.fact.id, "x")
 
 
-# --- build_query_text ------------------------------------------------------------
-class BuildQueryTextTests(unittest.TestCase):
-    def test_keeps_only_recent_n_and_formats(self) -> None:
-        thread = [{"sender_name": f"S{i}", "body": f"B{i}"} for i in range(8)]
-        out = ms.build_query_text(thread, recent_n=2)
-        self.assertEqual(out, "S6 said:\nB6\nS7 said:\nB7")
-
-    def test_shorter_than_n_uses_all(self) -> None:
-        thread = [{"sender_name": "A", "body": "hi"}]
-        self.assertEqual(ms.build_query_text(thread, recent_n=6), "A said:\nhi")
-
-
 # --- _cosine_matrix --------------------------------------------------------------
 class CosineMatrixTests(unittest.TestCase):
     def test_values(self) -> None:
@@ -119,7 +107,7 @@ class DepthAlphaBetaTests(unittest.TestCase):
         self.assertEqual(ms._calculate_depth_alpha_beta(0), (0.0, 1.0))
 
     def test_midpoint_at_k0(self) -> None:
-        alpha, beta = ms._calculate_depth_alpha_beta(4, k0=4.0)
+        alpha, beta = ms._calculate_depth_alpha_beta(4, ms.RetrievalConfig(k0=4.0))
         self.assertAlmostEqual(alpha, 0.5)
         self.assertAlmostEqual(beta, 0.5)
 
@@ -178,14 +166,14 @@ class CommonGroundTests(unittest.TestCase):
         # u0 and u1 both best-match p0; only the stronger pair survives.
         u = [make_fact("u0", embedding=(1, 0, 0)), make_fact("u1", embedding=(0.9, 0.1, 0))]
         p = [make_fact("p0", person_id="r", embedding=(1, 0, 0))]
-        pairs = ms.common_ground(u, p, min_similarity=0.3)
+        pairs = ms.common_ground(u, p, ms.RetrievalConfig(min_common_ground_sim=0.3))
         self.assertEqual(len(pairs), 1)
         self.assertEqual((pairs[0].user_fact.id, pairs[0].person_fact.id), ("u0", "p0"))
 
     def test_threshold_drops_weak_pairs(self) -> None:
         u = [make_fact("u0", embedding=(1, 0, 0))]
         p = [make_fact("p0", person_id="r", embedding=(0, 1, 0))]  # orthogonal -> sim 0
-        self.assertEqual(ms.common_ground(u, p, min_similarity=0.5), [])
+        self.assertEqual(ms.common_ground(u, p, ms.RetrievalConfig(min_common_ground_sim=0.5)), [])
 
     def test_limit_caps_results(self) -> None:
         # distinct one-hot dims so each user fact best-matches its own person fact
@@ -193,12 +181,13 @@ class CommonGroundTests(unittest.TestCase):
         eye = np.eye(5)
         u = [make_fact(f"u{i}", embedding=eye[i]) for i in range(5)]
         p = [make_fact(f"p{i}", person_id="r", embedding=eye[i]) for i in range(5)]
-        self.assertEqual(len(ms.common_ground(u, p, limit=2, min_similarity=0.3)), 2)
+        cfg = ms.RetrievalConfig(common_ground_limit=2, min_common_ground_sim=0.3)
+        self.assertEqual(len(ms.common_ground(u, p, cfg)), 2)
 
     def test_similarity_is_plain_float(self) -> None:
         u = [make_fact("u0", embedding=(1, 0))]
         p = [make_fact("p0", person_id="r", embedding=(1, 0))]
-        pairs = ms.common_ground(u, p, min_similarity=0.3)
+        pairs = ms.common_ground(u, p, ms.RetrievalConfig(min_common_ground_sim=0.3))
         self.assertIsInstance(pairs[0].similarity, float)
 
 
@@ -239,7 +228,7 @@ class RetrieveFactsForThreadTests(unittest.TestCase):
         thread = [{"sender_name": "x", "body": "y"} for _ in range(depth)]
         with mock.patch.object(ms, "embed_query", fake_embed), \
                 mock.patch.object(ms, "search_facts", fake_search):
-            return asyncio.run(ms.retrieve_facts_for_thread("U", "r", thread, k=k))
+            return asyncio.run(ms.retrieve_facts_for_thread("U", "r", thread, config=ms.RetrievalConfig(k=k)))
 
     def _shared_ground_facts(self) -> list[ms.ScoredFact]:
         # user/person facts that cross-match (cos 0.7), plus a headline on each side

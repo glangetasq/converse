@@ -7,17 +7,10 @@ from typing import Any, Literal, Mapping, Sequence
 
 import numpy as np
 
-from . import db
-from .llm.embeddings import get_embedder
-from .utils import render_thread
-
-
-# --- params -----------------------------------------------------------------------
-DEFAULT_K = 8                 # total facts returned (incl. the 2 headline slots)
-DEFAULT_RECENT_N = 6          # thread messages used to build the relevance query
-DEFAULT_K0 = 4.0             # blend midpoint: alpha(d) = d / (d + K0)
-DEFAULT_COMMON_GROUND_LIMIT = 6
-DEFAULT_MIN_COMMON_GROUND_SIM = 0.5   # drop weak "shared ground" pairs
+from .. import db
+from ..llm.embeddings import get_embedder
+from ..utils import render_thread
+from .config import DEFAULT_CONFIG, RetrievalConfig
 
 # memory_type anchors for Channel H (see ingestion/linkedin_profile + self_profile).
 PERSON_HEADLINE_TYPE = "headline"
@@ -93,16 +86,6 @@ class RetrievedFact:
     matched: FactRow | None = None   # set when label == "shared_ground"
 
 
-# --- Channel R: relevance query --------------------------------------------------
-def build_query_text(
-    thread: Sequence[Mapping[str, Any]],
-    *,
-    recent_n: int = DEFAULT_RECENT_N,
-) -> str:
-    """Render the recent thread tail into a single string to embed (Channel R)."""
-    return render_thread(thread, fmt="{sender_name} said:\n{body}", recent_n=recent_n)
-
-
 async def embed_query(text: str) -> list[float]:
     """Embed one query string -> n-d vector."""
     embedder = get_embedder()
@@ -166,13 +149,12 @@ def select_headlines(headlines: Sequence[FactRow]) -> list[RetrievedFact]:
 
     return retrieved_headlines
 
+
 # --- Channel C: common ground (pure, fact<->fact) --------------------------------
 def common_ground(
     user_facts: Sequence[FactRow],
     person_facts: Sequence[FactRow],
-    *,
-    limit: int = DEFAULT_COMMON_GROUND_LIMIT,
-    min_similarity: float = DEFAULT_MIN_COMMON_GROUND_SIM,
+    config: RetrievalConfig = DEFAULT_CONFIG,
 ) -> list[CommonGroundPair]:
     """Best cross-matches between the two fact sets (shared experience/school/skill)."""
     if not user_facts or not person_facts:
@@ -195,11 +177,11 @@ def common_ground(
     pairs: list[CommonGroundPair] = []
     seen_person: set[int] = set()
     for similarity, i, j in candidates:
-        if similarity < min_similarity or j in seen_person:
+        if similarity < config.min_common_ground_sim or j in seen_person:
             continue
         seen_person.add(j)
         pairs.append(CommonGroundPair(user_facts[i], person_facts[j], similarity))
-        if len(pairs) == limit:
+        if len(pairs) == config.common_ground_limit:
             break
 
     return pairs
@@ -224,39 +206,42 @@ def _cosine_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 
 # --- the blend -------------------------------------------------------------------
-def _calculate_depth_alpha_beta(depth: int, *, k0: float = DEFAULT_K0) -> tuple[float, float]:
+def _calculate_depth_alpha_beta(
+    depth: int,
+    config: RetrievalConfig = DEFAULT_CONFIG,
+) -> tuple[float, float]:
     """Relevance weight alpha(d) = d / (d + k0); beta = 1 - alpha"""
+    k0 = config.k0
     assert k0 > 0
     if depth == 0:
         return 0.0, 1.0
     alpha = depth / (depth + k0)
     return alpha, 1.0 - alpha
 
-# --- orchestrator (what the eval calls) ------------------------------------------
+
 async def retrieve_facts_for_thread(
     user_id: str,
     person_id: str,
     thread: Sequence[Mapping[str, Any]],
     *,
-    k: int = DEFAULT_K,
+    config: RetrievalConfig = DEFAULT_CONFIG,
 ) -> list[RetrievedFact]:
     """
       * H (headlines): always included, never blended (split out first).
       * R (relevance): each ScoredFact.similarity = its thread relevance.
       * C (common ground): per-fact best cross-similarity to the other pool.
-    For non-headline fact: score = alpha*relevance + beta*commonground. A fact must only appear once
+    Non-headline score = alpha*relevance + beta*commonground; a fact appears once.
     """
     thread_depth = len(thread)
-    query_embedding = await embed_query(build_query_text(thread))
+    query_text = render_thread(thread, fmt="{sender_name} said:\n{body}", recent_n=config.recent_n)
+    query_embedding = await embed_query(query_text)
     scored_facts = await search_facts(user_id=user_id, query_embedding=query_embedding, person_id=person_id)
     scored_facts, headlines = split_headlines(scored_facts)
 
-    # channel: headlines
     retrieved_headlines = select_headlines(headlines)
 
-    # channel: common grounds
     user_facts, person_facts = split_user_person_facts(scored_facts)
-    cg_pairs = common_ground(user_facts, person_facts)
+    cg_pairs = common_ground(user_facts, person_facts, config)
 
     # map a fact id -> its best common-ground match (similarity + the counterpart fact)
     cg_by_fact: dict[str, tuple[float, FactRow]] = {}
@@ -264,15 +249,14 @@ async def retrieve_facts_for_thread(
         cg_by_fact[pair.user_fact.id] = (pair.similarity, pair.person_fact)
         cg_by_fact[pair.person_fact.id] = (pair.similarity, pair.user_fact)
 
-    # channel: relevance (sf.similarity) + aggregation: blend R with C, ONE item per fact
-    alpha, beta = _calculate_depth_alpha_beta(thread_depth)
+    alpha, beta = _calculate_depth_alpha_beta(thread_depth, config)
     relevance_term = {sf.fact.id: alpha * sf.similarity for sf in scored_facts}
 
     blended: list[RetrievedFact] = []
     consumed: set[str] = set()
 
-    # shared-ground items first: one per winning pair, consuming BOTH facts so neither
-    # reappears individually. A pair wins when its common-ground score beats the individual score of either side.
+    # shared-ground items first: one per winning pair, consuming BOTH facts so
+    # neither reappears solo. A pair wins when its CG score beats either side's.
     for pair in cg_pairs:
         common_ground_term = beta * pair.similarity
         best_relevance_term = min(relevance_term[pair.user_fact.id], relevance_term[pair.person_fact.id])
@@ -304,6 +288,5 @@ async def retrieve_facts_for_thread(
         )
 
     blended.sort(key=lambda rf: rf.score, reverse=True)
-    remaining = max(0, k - len(retrieved_headlines))
-
+    remaining = max(0, config.k - len(retrieved_headlines))
     return retrieved_headlines + blended[:remaining]
