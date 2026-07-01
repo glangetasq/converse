@@ -19,7 +19,7 @@ async def generate_followup(
     payload: FollowupGenerationRequest,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    todo = "Implement memory retrieval, prompt assembly, OpenAI relay/client call, and persistence."
+    todo = "Implement memory retrieval, prompt assembly, provider client call, and persistence."
     generation = await db.fetch_one(
         """
         INSERT INTO followup_generations (
