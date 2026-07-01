@@ -4,7 +4,7 @@ runs both candidate orders to cancel position bias."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Any, Sequence
 
 from ...llm import GenConfig, LlmCallLimiter, ProviderClient
 from .core import Candidate, Case, PairwiseJudgement, PointwiseJudgement
@@ -27,9 +27,14 @@ class JudgePromptBuilder(ABC):
     ) -> str:
         raise NotImplementedError
 
+    def spec(self) -> dict[str, Any]:
+        """Snapshot of the prompt; template builders override to pin their fingerprint."""
+        return {"builder": type(self).__name__}
+
 
 class Judge(ABC):
     mode: str
+    logic_version: str = "v1"   # bump when the judging methodology changes
 
     def __init__(
         self,
@@ -48,6 +53,17 @@ class Judge(ABC):
     def build_prompt(self, case: Case, candidates: Sequence[Candidate]) -> str:
         return self.prompt.build(case, candidates, self.scorecard)
 
+    def spec(self) -> dict[str, Any]:
+        """Snapshot of what scored a run — counterpart to Arm.spec()."""
+        return {
+            "name": self.name,
+            "mode": self.mode,
+            "logic_version": self.logic_version,
+            "gen": self.cfg.spec(),
+            "prompt": self.prompt.spec(),
+            "scorecard": self.scorecard.spec(),
+        }
+
     @abstractmethod
     async def judge(
         self,
@@ -61,6 +77,7 @@ class Judge(ABC):
 
 class PointwiseJudge(Judge):
     mode = "pointwise"
+    logic_version = "pointwise-v1"
 
     async def judge(
         self,
@@ -94,6 +111,7 @@ class PointwiseJudge(Judge):
 
 class PairwiseJudge(Judge):
     mode = "pairwise"
+    logic_version = "pairwise-v1"
 
     async def judge(
         self,

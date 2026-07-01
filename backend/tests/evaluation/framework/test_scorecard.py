@@ -59,6 +59,30 @@ class ScorecardValidationTests(unittest.TestCase):
         self.assertEqual(_scorecard().metric_keys, ["relevance", "tone"])
 
 
+class ScorecardFingerprintTests(unittest.TestCase):
+    def test_fingerprint_stable_for_same_metrics(self) -> None:
+        self.assertEqual(_scorecard().fingerprint, _scorecard().fingerprint)
+
+    def test_fingerprint_changes_when_a_description_changes(self) -> None:
+        edited = Scorecard(
+            version="v1",  # deliberately NOT bumped — the fingerprint must still move
+            metrics=(
+                Metric("relevance", "on-topic AND useful", (1, 5)),
+                Metric("tone", "matches sender voice", (1, 3)),
+            ),
+        )
+        self.assertNotEqual(_scorecard().fingerprint, edited.fingerprint)
+
+    def test_spec_carries_version_fingerprint_and_metrics(self) -> None:
+        spec = _scorecard().spec()
+        self.assertEqual(spec["version"], "v1")
+        self.assertEqual(spec["fingerprint"], _scorecard().fingerprint)
+        self.assertEqual(
+            spec["metrics"],
+            [{"key": "relevance", "scale": [1, 5]}, {"key": "tone", "scale": [1, 3]}],
+        )
+
+
 class PointwiseSchemaTests(unittest.TestCase):
     def test_one_property_per_metric_plus_rationale(self) -> None:
         schema = _scorecard().pointwise_schema()

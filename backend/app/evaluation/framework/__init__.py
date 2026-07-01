@@ -10,13 +10,15 @@ from .core import (
     PointwiseJudgement,
 )
 from .judges import Judge, JudgePromptBuilder, PairwiseJudge, PointwiseJudge
-from .runner import results_to_frame, run_eval
+from .results import load_run, save_run
+from .runner import EvalRun, run_eval
 from .scorecard import Metric, Scorecard
 
 __all__ = [
     "Arm",
     "Candidate",
     "Case",
+    "EvalRun",
     "Judge",
     "JudgeMode",
     "JudgePromptBuilder",
@@ -27,6 +29,7 @@ __all__ = [
     "PointwiseJudge",
     "PointwiseJudgement",
     "Scorecard",
-    "results_to_frame",
+    "load_run",
     "run_eval",
+    "save_run",
 ]

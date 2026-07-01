@@ -61,6 +61,22 @@ def _pairwise(client: Any) -> PairwiseJudge:
     return PairwiseJudge("j", SCORECARD, client, GenConfig(model_name="m"), StubJudgePromptBuilder())
 
 
+class JudgeSpecTests(unittest.TestCase):
+    def test_spec_snapshots_model_prompt_scorecard_and_logic(self) -> None:
+        spec = _pairwise(StubStructuredClient([])).spec()
+        self.assertEqual(spec["name"], "j")
+        self.assertEqual(spec["mode"], "pairwise")
+        self.assertEqual(spec["logic_version"], "pairwise-v1")
+        self.assertEqual(spec["gen"]["model_name"], "m")
+        self.assertEqual(spec["scorecard"]["fingerprint"], SCORECARD.fingerprint)
+
+    def test_pointwise_and_pairwise_logic_versions_differ(self) -> None:
+        self.assertNotEqual(
+            _pointwise(StubStructuredClient([])).spec()["logic_version"],
+            _pairwise(StubStructuredClient([])).spec()["logic_version"],
+        )
+
+
 class PointwiseJudgeTests(unittest.TestCase):
     def test_one_call_scores_all_metrics(self) -> None:
         client = StubStructuredClient([{"relevance": 4, "tone": 5, "rationale": "solid"}])

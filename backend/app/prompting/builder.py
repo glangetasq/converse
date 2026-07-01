@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from string import Template
 from typing import Any
 
+from ..utils import fingerprint as _fingerprint
 from ..utils import render_thread
 from .context import PromptContext
 
@@ -46,5 +47,6 @@ class SuggestionPromptBuilder:
     def spec(self) -> dict[str, Any]:
         return {
             "version": self.version,
+            "fingerprint": _fingerprint(self.template.template),
             "augment": self.augment.spec() if self.augment else None,
         }

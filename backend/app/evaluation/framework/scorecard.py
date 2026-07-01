@@ -8,6 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ...utils import fingerprint
+
 RATIONALE_KEY = "rationale"   # reserved; a metric key can't reuse it
 
 PREFERENCE_CHOICES = ("a", "b", "tie")
@@ -48,6 +50,21 @@ class Scorecard:
     @property
     def metric_keys(self) -> list[str]:
         return [m.key for m in self.metrics]
+
+    @property
+    def fingerprint(self) -> str:
+        """Content hash of the metrics — moves on an edit even if version isn't bumped."""
+        payload = repr([(m.key, m.description, m.scale) for m in self.metrics])
+        return fingerprint(payload)
+
+    def spec(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "fingerprint": self.fingerprint,
+            "metrics": [
+                {"key": m.key, "scale": list(m.scale)} for m in self.metrics
+            ],
+        }
 
     def pointwise_schema(self) -> dict[str, Any]:
         """{metric: int-in-scale for each metric} + rationale."""
