@@ -50,3 +50,10 @@ class AssetLibrary:
         if not path.is_file():
             raise FileNotFoundError(f"no asset {name}/{version} at {path}")
         return TextAsset(name=name, version=version, text=path.read_text(encoding="utf-8"))
+
+    def load_template(
+        self, name: str, version: str, fields: Iterable[str] | None = None
+    ) -> Template:
+        """Load an asset and return its text as a validated string.Template. `fields`
+        asserts the ${placeholders} match exactly (see TextAsset.as_template)."""
+        return self.load(name, version).as_template(fields)
