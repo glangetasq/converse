@@ -1,6 +1,6 @@
 """Direct OpenAI text-embedding client.
 
-Deliberately standalone: no relay, no dependency on the chat `Model` hierarchy.
+Deliberately standalone: no dependency on the chat provider clients.
 A single batched POST to the OpenAI embeddings endpoint, authenticated with the
 API key. Swap `OpenAIEmbedder` for a local/frozen implementation later by keeping
 the `Embedder` contract.

@@ -3,99 +3,78 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import settings
-from .base import Model, ModelError
+from .base import ModelError, ProviderClient
+from .generation import Completion, GenConfig
 
 
-class OpenAIModel(Model):
+def _strip_json_code_fence(text: str) -> str:
+    text = text.strip()
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if lines and lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip().startswith("```"):
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+class OpenAIClient(ProviderClient):
+    suite = "openai"
+    max_temperature = 2.0
+
     def __init__(
         self,
-        model_name: str,
         *,
         base_url: str | None = None,
         api_key: str | None = None,
-        relay_base_url: str | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
-        configured_relay_base_url = (
-            relay_base_url if relay_base_url is not None else settings.openai_relay_base_url
-        )
-        self.uses_relay = configured_relay_base_url is not None
-        self.api_key = None if self.uses_relay else (
-            api_key if api_key is not None else settings.openai_api_key
-        )
-
+        self.api_key = api_key if api_key is not None else settings.openai_api_key
         super().__init__(
-            suite="openai",
-            model_name=model_name,
-            path="/openai/v1/responses" if self.uses_relay else "/v1/responses",
-            base_url=configured_relay_base_url or base_url or settings.openai_api_base_url,
-            transport_name="relay" if self.uses_relay else "API",
+            base_url=base_url or settings.openai_api_base_url,
+            path="/v1/responses",
             timeout_seconds=timeout_seconds,
         )
 
-    def build_request_body(
-        self,
-        prompt: str,
-        *,
-        temperature: float | None = None,
-        top_p: float | None = None,
-        response_format: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    def build_body(self, prompt: str, cfg: GenConfig) -> dict[str, Any]:
         body: dict[str, Any] = {
-            "model": self.model_name,
+            "model": cfg.model_name,
             "input": self.validate_prompt(prompt),
             "store": False,
         }
-        if response_format is not None:
-            body["text"] = {"format": response_format}
-        return self.add_sampling_parameters(body, temperature=temperature, top_p=top_p)
+        if cfg.schema is not None:
+            body["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": cfg.schema.get("title", "response"),
+                    "strict": True,
+                    "schema": cfg.schema,
+                }
+            }
+        return self.apply_sampling(body, cfg)
 
-    def build_request_headers(self) -> dict[str, str]:
-        headers = super().build_request_headers()
-        if self.uses_relay:
-            return headers
-
-        if not self.api_key:
-            raise ModelError(
-                "OPENAI_API_KEY is required for direct OpenAI API calls. "
-                "Set OPENAI_RELAY_BASE_URL to use a local relay instead."
-            )
-
-        headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
-
-    def with_options(
-        self,
-        *,
-        base_url: str | None = None,
-        relay_base_url: str | None = None,
-        timeout_seconds: float | None = None,
-    ) -> OpenAIModel:
-        return OpenAIModel(
-            self.model_name,
-            base_url=base_url if base_url is not None else (None if self.uses_relay else self.base_url),
-            api_key=self.api_key,
-            relay_base_url=relay_base_url if relay_base_url is not None else (
-                self.base_url if self.uses_relay else None
-            ),
-            timeout_seconds=timeout_seconds if timeout_seconds is not None else self.timeout_seconds,
+    def parse(self, raw: dict[str, Any]) -> Completion:
+        node: Any = raw
+        for step in ("output", 0, "content", 0, "text"):
+            if isinstance(node, list):
+                if not isinstance(step, int) or step >= len(node):
+                    raise ModelError("OpenAI response missing output[0].content[0].text", response_body=raw)
+                node = node[step]
+            elif isinstance(node, dict):
+                node = node.get(step, {})
+            else:
+                raise ModelError("OpenAI response missing output[0].content[0].text", response_body=raw)
+        if not node:
+            raise ModelError("OpenAI response missing output[0].content[0].text", response_body=raw)
+        return Completion(
+            text=_strip_json_code_fence(node),
+            usage=raw.get("usage", {}) or {},
+            finish_reason=raw.get("status"),
+            raw=raw,
         )
 
-
-OpenAIResponsesModel = OpenAIModel
-
-GPT55ProModel = OpenAIModel("gpt-5.5-pro")
-GPT55Model = OpenAIModel("gpt-5.5")
-GPT54ProModel = OpenAIModel("gpt-5.4-pro")
-GPT54Model = OpenAIModel("gpt-5.4")
-GPT54MiniModel = OpenAIModel("gpt-5.4-mini")
-GPT54NanoModel = OpenAIModel("gpt-5.4-nano")
-
-OPENAI_MODELS: tuple[OpenAIModel, ...] = (
-    GPT55ProModel,
-    GPT55Model,
-    GPT54ProModel,
-    GPT54Model,
-    GPT54MiniModel,
-    GPT54NanoModel,
-)
+    def build_headers(self) -> dict[str, str]:
+        if not self.api_key:
+            raise ModelError("OPENAI_API_KEY is required for OpenAI API calls.")
+        return {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
