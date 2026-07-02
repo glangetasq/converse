@@ -68,10 +68,10 @@ class SuggestionPromptBuilderTests(unittest.TestCase):
         with_aug = SuggestionPromptBuilder(_template(), "v1", AppendAugmentor()).spec()
 
         self.assertEqual(no_aug["version"], "v1")
-        self.assertTrue(no_aug["fingerprint"])              # non-empty content hash
-        self.assertIsNone(no_aug["augment"])                # no_rag reports no augment
+        self.assertTrue(no_aug["fingerprint"])  # non-empty content hash
+        self.assertIsNone(no_aug["augment"])  # no_rag reports no augment
         self.assertEqual(with_aug["augment"], {"name": "append"})
-        self.assertEqual(no_aug["fingerprint"], with_aug["fingerprint"])   # same template text
+        self.assertEqual(no_aug["fingerprint"], with_aug["fingerprint"])  # same template text
 
 
 class RagAugmentorTests(unittest.TestCase):
@@ -130,7 +130,7 @@ class RagAugmentorTests(unittest.TestCase):
         spec = RagAugmentor().spec()
 
         self.assertEqual(spec["name"], "rag")
-        self.assertEqual(spec["k"], 8)   # RetrievalConfig default
+        self.assertEqual(spec["k"], 8)  # RetrievalConfig default
 
 
 if __name__ == "__main__":

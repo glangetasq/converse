@@ -11,7 +11,6 @@ from psycopg_pool import AsyncConnectionPool
 
 from .loggers import db_logger
 
-
 pool: AsyncConnectionPool | None = None
 
 
@@ -74,7 +73,7 @@ async def fetch_all(query: str, params: Sequence[Any] = ()) -> list[dict[str, An
 
 async def init_schema() -> None:
     sql_dir = Path(__file__).resolve().parents[1] / "sql"
-    files = sorted(sql_dir.glob("*.sql"))   # numeric prefixes order FK dependencies
+    files = sorted(sql_dir.glob("*.sql"))  # numeric prefixes order FK dependencies
     db_logger.info("Initializing database schema from %s (%d files)", sql_dir, len(files))
 
     async for conn in connection():

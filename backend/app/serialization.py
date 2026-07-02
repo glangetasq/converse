@@ -5,7 +5,6 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-
 KEY_MAP = {
     "created_at": "createdAt",
     "updated_at": "updatedAt",
@@ -56,4 +55,3 @@ def to_api(value: Any) -> Any:
         return float(value)
 
     return value
-

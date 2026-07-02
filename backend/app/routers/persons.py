@@ -9,7 +9,6 @@ from ..dependencies import get_current_user
 from ..serialization import to_api
 from ..users import normalize_username
 
-
 router = APIRouter()
 
 

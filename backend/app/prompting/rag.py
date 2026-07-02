@@ -59,10 +59,7 @@ class RagAugmentor(Augmentor):
             sections.append(_bullets(f"About {recipient_name}:", about_recipient))
         if shared:
             # blank line between pairs so each (sender, recipient) tuple reads as a unit
-            pairs = [
-                f"- {sender_name}: {rf.fact.content}\n  {recipient_name}: {rf.matched.content}"
-                for rf in shared
-            ]
+            pairs = [f"- {sender_name}: {rf.fact.content}\n  {recipient_name}: {rf.matched.content}" for rf in shared]
             sections.append("Shared ground:\n" + "\n\n".join(pairs))
         return "\n\n".join(sections)
 

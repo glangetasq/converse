@@ -38,9 +38,7 @@ class ClaudeClient(ProviderClient):
         if cfg.schema is not None:
             # strict=True upgrades soft trained-adherence to a hard schema guarantee;
             # requires the schema to carry additionalProperties:false + all-required.
-            body["tools"] = [
-                {"name": STRUCTURED_TOOL_NAME, "input_schema": cfg.schema, "strict": True}
-            ]
+            body["tools"] = [{"name": STRUCTURED_TOOL_NAME, "input_schema": cfg.schema, "strict": True}]
             body["tool_choice"] = {"type": "tool", "name": STRUCTURED_TOOL_NAME}
         return self.apply_sampling(body, cfg)
 

@@ -38,11 +38,7 @@ def _raw_text(profile: dict[str, Any]) -> str:
             chunks.append(str(value).strip())
     for exp in profile.get("experience") or []:
         if isinstance(exp, dict):
-            line = " — ".join(
-                str(exp[k]).strip()
-                for k in ("job_title", "company", "about")
-                if exp.get(k)
-            )
+            line = " — ".join(str(exp[k]).strip() for k in ("job_title", "company", "about") if exp.get(k))
             if line:
                 chunks.append(line)
     for edu in profile.get("education") or []:

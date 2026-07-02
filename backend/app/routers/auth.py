@@ -8,7 +8,6 @@ from ..models import LoginRequest
 from ..serialization import to_api
 from ..users import get_or_create_user_by_name, normalize_username
 
-
 router = APIRouter()
 
 

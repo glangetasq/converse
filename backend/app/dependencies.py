@@ -14,4 +14,3 @@ async def get_current_user() -> dict[str, Any]:
 
 def jsonb(value: Any) -> Jsonb:
     return Jsonb(value if value is not None else {})
-

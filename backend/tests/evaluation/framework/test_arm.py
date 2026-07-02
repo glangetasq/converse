@@ -30,9 +30,7 @@ class StubBuilder:
 class StubClient:
     """Duck-types ProviderClient.generate."""
 
-    def __init__(
-        self, completion: Completion | None = None, *, raises: Exception | None = None
-    ) -> None:
+    def __init__(self, completion: Completion | None = None, *, raises: Exception | None = None) -> None:
         self._completion = completion or Completion(text="hello", usage={"total_tokens": 3})
         self._raises = raises
         self.prompts: list[str] = []
@@ -84,7 +82,7 @@ class ArmRunTests(unittest.TestCase):
         cand = asyncio.run(arm.run(_case()))
 
         self.assertEqual(cand.error, "ValueError: no facts")
-        self.assertEqual(client.prompts, [])   # never reached the model
+        self.assertEqual(client.prompts, [])  # never reached the model
 
     def test_spec_round_trips_config(self) -> None:
         arm = _arm(StubBuilder(), StubClient())

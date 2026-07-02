@@ -62,7 +62,7 @@ def _strip_bullet(line: str) -> str | None:
     """Return the text after a bullet marker, or None if the line isn't a bullet."""
     for marker in _BULLET_MARKERS:
         if line.startswith(marker):
-            return line[len(marker):].strip()
+            return line[len(marker) :].strip()
     return None
 
 
@@ -105,7 +105,7 @@ def parse_self_profile_markdown(text: str) -> tuple[str | None, list[MemoryDraft
 
         bullet = _strip_bullet(stripped)
         if bullet is not None:
-            flush()              # one memory per bullet
+            flush()  # one memory per bullet
             buffer.append(bullet)
         else:
             buffer.append(stripped)  # paragraph text or a wrapped bullet continuation

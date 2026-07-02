@@ -54,9 +54,7 @@ class OpenAIEmbedder(Embedder):
         if not texts:
             return []
 
-        response = await asyncio.to_thread(
-            self._post, {"model": self.model_name, "input": texts}
-        )
+        response = await asyncio.to_thread(self._post, {"model": self.model_name, "input": texts})
         return self._parse(response, expected_count=len(texts))
 
     def _post(self, body: dict[str, Any]) -> dict[str, Any]:

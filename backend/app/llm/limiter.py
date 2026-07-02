@@ -12,9 +12,7 @@ class LlmCallLimiter:
 
         self.semaphore = asyncio.Semaphore(concurrency)
         self.min_interval_seconds = (
-            60 / max_calls_per_minute
-            if max_calls_per_minute is not None and max_calls_per_minute > 0
-            else 0
+            60 / max_calls_per_minute if max_calls_per_minute is not None and max_calls_per_minute > 0 else 0
         )
         self._pace_lock = asyncio.Lock()
         self._next_call_at = 0.0

@@ -7,7 +7,6 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-
 _LOGGER_NAMESPACE = "converse"
 _MODULE_FIELD = "converse_module"
 _HANDLER_MARKER = "_converse_daily_file_handler"

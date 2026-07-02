@@ -39,18 +39,21 @@ class RecordingJudge:
     def __init__(self) -> None:
         self.seen: list[tuple[str, ...]] = []
 
-    async def judge(
-        self, case: Case, candidates: Sequence[Candidate], *, limiter: Any = None
-    ) -> Any:
+    async def judge(self, case: Case, candidates: Sequence[Candidate], *, limiter: Any = None) -> Any:
         self.seen.append(tuple(c.id for c in candidates))
         if len(candidates) == 1:
             return PointwiseJudgement(
-                judge_name="j", scorecard_version="v1",
-                subject_candidate_id=candidates[0].id, scores={},
+                judge_name="j",
+                scorecard_version="v1",
+                subject_candidate_id=candidates[0].id,
+                scores={},
             )
         return PairwiseJudgement(
-            judge_name="j", scorecard_version="v1",
-            candidate_a_id=candidates[0].id, candidate_b_id=candidates[1].id, winner="a",
+            judge_name="j",
+            scorecard_version="v1",
+            candidate_a_id=candidates[0].id,
+            candidate_b_id=candidates[1].id,
+            winner="a",
         )
 
     def spec(self) -> dict[str, Any]:
@@ -96,8 +99,9 @@ class PairAbTests(unittest.TestCase):
 
     def test_drops_slots_missing_an_arm(self) -> None:
         cands = [
-            self._c("a", "c1", 0), self._c("b", "c1", 0),   # complete slot
-            self._c("a", "c2", 0),                           # b missing -> dropped
+            self._c("a", "c1", 0),
+            self._c("b", "c1", 0),  # complete slot
+            self._c("a", "c2", 0),  # b missing -> dropped
         ]
 
         pairs = pair_ab(cands, "a", "b")
@@ -141,7 +145,7 @@ class RunEvalTests(unittest.TestCase):
 
         self.assertEqual(run.plan, "pairwise")
         self.assertEqual(len(judge.seen), 1)
-        self.assertEqual(len(judge.seen[0]), 2)   # judge got [a, b]
+        self.assertEqual(len(judge.seen[0]), 2)  # judge got [a, b]
 
     def test_run_records_arm_and_judge_specs_and_git_meta(self) -> None:
         run = asyncio.run(run_eval(_cases("c1"), [_arm("no_rag")], [RecordingJudge()], label="exp"))

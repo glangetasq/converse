@@ -48,12 +48,7 @@ async def run_eval(
 
     candidates = list(
         await asyncio.gather(
-            *(
-                arm.run(case, repeat, limiter=limiter)
-                for case in cases
-                for arm in arms
-                for repeat in range(samples)
-            )
+            *(arm.run(case, repeat, limiter=limiter) for case in cases for arm in arms for repeat in range(samples))
         )
     )
 
@@ -61,11 +56,7 @@ async def run_eval(
     scored = [c for c in candidates if c.error is None]
 
     if plan == "pointwise":
-        judge_tasks = [
-            judge.judge(case_by_id[c.case_id], [c], limiter=limiter)
-            for c in scored
-            for judge in judges
-        ]
+        judge_tasks = [judge.judge(case_by_id[c.case_id], [c], limiter=limiter) for c in scored for judge in judges]
     else:
         judge_tasks = [
             judge.judge(case_by_id[a.case_id], [a, b], limiter=limiter)
@@ -93,10 +84,7 @@ def pair_ab(
 ) -> list[tuple[Candidate, Candidate]]:
     """Pair each arm_a candidate with the arm_b one from the same (case, sample), so a
     comparison is always same-case same-sample. Slots missing either arm are dropped."""
-    slot = lambda c: (c.case_id, c.repeat_index)   # noqa: E731
+    slot = lambda c: (c.case_id, c.repeat_index)  # noqa: E731
     a_by_slot = {slot(c): c for c in candidates if c.arm_name == arm_a}
     b_by_slot = {slot(c): c for c in candidates if c.arm_name == arm_b}
-    return [
-        (a_by_slot[s], b_by_slot[s])
-        for s in sorted(a_by_slot.keys() & b_by_slot.keys())
-    ]
+    return [(a_by_slot[s], b_by_slot[s]) for s in sorted(a_by_slot.keys() & b_by_slot.keys())]

@@ -27,7 +27,7 @@ class FactRow:
     memory_type: str
     content: str
     created_at: datetime
-    embedding: np.ndarray         # raw pgvector text on the way in, ndarray after init
+    embedding: np.ndarray  # raw pgvector text on the way in, ndarray after init
 
     def __post_init__(self) -> None:
         self.id = str(self.id)
@@ -40,7 +40,7 @@ class FactRow:
         if isinstance(raw, np.ndarray):
             return raw.astype(np.float32, copy=False)
         if isinstance(raw, str):
-            raw = json.loads(raw)   # pgvector text form is a valid JSON array
+            raw = json.loads(raw)  # pgvector text form is a valid JSON array
         return np.asarray(raw, dtype=np.float32)
 
     @property
@@ -59,7 +59,7 @@ class FactRow:
 @dataclass
 class ScoredFact:
     fact: FactRow
-    similarity: float             # cosine similarity in [-1, 1] (1 - distance)
+    similarity: float  # cosine similarity in [-1, 1] (1 - distance)
 
     @classmethod
     def from_db_result(cls, **kwargs):
@@ -83,7 +83,7 @@ class RetrievedFact:
     fact: FactRow
     label: FactLabel
     score: float | None = None
-    matched: FactRow | None = None   # set when label == "shared_ground"
+    matched: FactRow | None = None  # set when label == "shared_ground"
 
 
 async def embed_query(text: str) -> list[float]:
@@ -166,10 +166,7 @@ def common_ground(
 
     # (similarity, user_idx, person_idx) for each user fact's best person fact, strongest first
     candidates = sorted(
-        (
-            (float(cosine_matrix[i, j]), i, int(j))
-            for i, j in enumerate(cosine_matrix.argmax(axis=1))
-        ),
+        ((float(cosine_matrix[i, j]), i, int(j)) for i, j in enumerate(cosine_matrix.argmax(axis=1))),
         reverse=True,
     )
 

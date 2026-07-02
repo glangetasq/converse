@@ -10,7 +10,6 @@ from ..dependencies import get_current_user
 from ..models import FollowupFeedbackRequest, FollowupGenerationRequest
 from ..serialization import to_api
 
-
 router = APIRouter()
 
 
@@ -72,4 +71,3 @@ async def save_feedback(
         raise HTTPException(status_code=404, detail="Follow-up generation not found")
 
     return to_api(generation)
-

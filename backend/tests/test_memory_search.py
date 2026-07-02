@@ -48,8 +48,12 @@ class FactRowTests(unittest.TestCase):
 
     def test_post_init_casts_ids_and_parses_embedding(self) -> None:
         fact = ms.FactRow(
-            id=123, person_id=None, memory_type="user.skill",
-            content="c", created_at=datetime(2026, 1, 1), embedding="[0.1,0.2]",
+            id=123,
+            person_id=None,
+            memory_type="user.skill",
+            content="c",
+            created_at=datetime(2026, 1, 1),
+            embedding="[0.1,0.2]",
         )
         self.assertEqual(fact.id, "123")
         self.assertIsNone(fact.person_id)
@@ -70,8 +74,13 @@ class FactRowTests(unittest.TestCase):
 class ScoredFactTests(unittest.TestCase):
     def test_from_db_result_pops_distance_and_computes_similarity(self) -> None:
         sf = ms.ScoredFact.from_db_result(
-            id="x", person_id=None, memory_type="user.project",
-            content="c", created_at=datetime(2026, 1, 1), embedding="[1,0]", distance=0.25,
+            id="x",
+            person_id=None,
+            memory_type="user.project",
+            content="c",
+            created_at=datetime(2026, 1, 1),
+            embedding="[1,0]",
+            distance=0.25,
         )
         self.assertAlmostEqual(sf.similarity, 0.75)
         self.assertEqual(sf.fact.id, "x")
@@ -199,8 +208,15 @@ class SearchFactsTests(unittest.TestCase):
         async def fake_fetch_all(sql: str, params: Any) -> list[dict[str, Any]]:
             captured["sql"], captured["params"] = sql, params
             return [
-                dict(id="a", person_id=None, memory_type="user.project",
-                     content="c", created_at=datetime(2026, 1, 1), embedding="[1,0]", distance=0.2),
+                dict(
+                    id="a",
+                    person_id=None,
+                    memory_type="user.project",
+                    content="c",
+                    created_at=datetime(2026, 1, 1),
+                    embedding="[1,0]",
+                    distance=0.2,
+                ),
             ]
 
         with mock.patch.object(db, "fetch_all", fake_fetch_all):
@@ -226,8 +242,7 @@ class RetrieveFactsForThreadTests(unittest.TestCase):
             return scored_facts
 
         thread = [{"sender_name": "x", "body": "y"} for _ in range(depth)]
-        with mock.patch.object(ms, "embed_query", fake_embed), \
-                mock.patch.object(ms, "search_facts", fake_search):
+        with mock.patch.object(ms, "embed_query", fake_embed), mock.patch.object(ms, "search_facts", fake_search):
             return asyncio.run(ms.retrieve_facts_for_thread("U", "r", thread, config=ms.RetrievalConfig(k=k)))
 
     def _shared_ground_facts(self) -> list[ms.ScoredFact]:

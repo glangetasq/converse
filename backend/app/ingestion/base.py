@@ -44,9 +44,9 @@ class PersonIdentity:
 class ParsedSource:
     """Normalized output of a source-type parser, ready to persist."""
 
-    kind: str                       # source_documents.kind
-    source: str                     # source_documents.source
-    content: dict[str, Any]         # parser JSON verbatim -> content jsonb
+    kind: str  # source_documents.kind
+    source: str  # source_documents.source
+    content: dict[str, Any]  # parser JSON verbatim -> content jsonb
     source_url: str | None = None
     raw_text: str | None = None
     person: PersonIdentity | None = None  # None => a self-document (person_id NULL)
@@ -55,7 +55,7 @@ class ParsedSource:
 
 @dataclass
 class IngestResult:
-    status: str                     # 'ingested' | 'duplicate'
+    status: str  # 'ingested' | 'duplicate'
     source_document_id: str | None
     person_id: str | None
 
@@ -91,9 +91,9 @@ def _vector_literal(vector: list[float]) -> str:
 class SourceIngestor(ABC):
     """One source type's ingest (raw) + atomize (memories) pipeline."""
 
-    parser_id: str   # live dispatch key (frontend parse_dump payload), e.g. "linkedin-profile"
-    kind: str        # source_documents.kind; reprocess dispatch key, e.g. "linkedin_profile"
-    source: str      # source_documents.source / memory_items.source, e.g. "linkedin"
+    parser_id: str  # live dispatch key (frontend parse_dump payload), e.g. "linkedin-profile"
+    kind: str  # source_documents.kind; reprocess dispatch key, e.g. "linkedin_profile"
+    source: str  # source_documents.source / memory_items.source, e.g. "linkedin"
 
     # --- per-source knowledge (subclass implements) -----------------------------
     @abstractmethod

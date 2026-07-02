@@ -76,12 +76,10 @@ async def get_or_create_dev_user_id() -> str:
 
 
 async def get_user_id_to_name_dict() -> dict[str, str]:
-    rows = await db.fetch_all(
-        """
+    rows = await db.fetch_all("""
         SELECT id, display_name AS name
         FROM users
         ORDER BY display_name, id
-        """
-    )
+        """)
 
     return {str(row["id"]): row["name"] or "" for row in rows}

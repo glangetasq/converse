@@ -80,10 +80,7 @@ class ParseMarkdownTests(unittest.TestCase):
 
     def test_html_comment_block_is_stripped(self) -> None:
         # A comment containing heading/bullet syntax must not leak into memories.
-        text = (
-            "<!--\nguide: ## Section -> user.goal\n- not a real bullet\n-->\n"
-            "## Skills\n- Python.\n"
-        )
+        text = "<!--\nguide: ## Section -> user.goal\n- not a real bullet\n-->\n" "## Skills\n- Python.\n"
         _title, drafts = parse_self_profile_markdown(text)
         self.assertEqual([(d.memory_type, d.content) for d in drafts], [("user.skill", "Python.")])
 

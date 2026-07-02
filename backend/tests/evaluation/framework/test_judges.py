@@ -36,9 +36,7 @@ class StubStructuredClient:
         self._raises = raises
         self.calls: list[tuple[str, dict]] = []
 
-    async def generate_structured(
-        self, prompt: str, schema: dict, cfg: GenConfig, *, limiter: Any = None
-    ) -> dict:
+    async def generate_structured(self, prompt: str, schema: dict, cfg: GenConfig, *, limiter: Any = None) -> dict:
         self.calls.append((prompt, schema))
         if self._raises is not None:
             raise self._raises
@@ -84,7 +82,7 @@ class PointwiseJudgeTests(unittest.TestCase):
 
         j = asyncio.run(judge.judge(_case(), [_cand("no_rag")]))
 
-        self.assertEqual(len(client.calls), 1)   # single call, all metrics
+        self.assertEqual(len(client.calls), 1)  # single call, all metrics
         self.assertEqual(j.scores, {"relevance": 4, "tone": 5})
         self.assertEqual(j.rationale, "solid")
         self.assertEqual(j.subject_candidate_id, "c1::no_rag::0")

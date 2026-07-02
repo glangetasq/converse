@@ -34,7 +34,7 @@ class JudgePromptBuilder(ABC):
 
 class Judge(ABC):
     mode: str
-    logic_version: str = "v1"   # bump when the judging methodology changes
+    logic_version: str = "v1"  # bump when the judging methodology changes
 
     def __init__(
         self,
@@ -142,8 +142,7 @@ class PairwiseJudge(Judge):
             base.error = f"{type(error).__name__}: {error}"
             return base
         base.preference = {
-            m.key: self._reconcile(forward.get(m.key), reversed_.get(m.key))
-            for m in self.scorecard.metrics
+            m.key: self._reconcile(forward.get(m.key), reversed_.get(m.key)) for m in self.scorecard.metrics
         }
         base.winner = self._winner(base.preference)
         base.rationale = self._merge_rationales(forward, reversed_)

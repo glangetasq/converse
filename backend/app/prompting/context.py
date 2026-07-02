@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Protocol, Sequence
 
-Thread = Sequence[Mapping[str, Any]]   # each item: {body, sent_time, sender_name}
+Thread = Sequence[Mapping[str, Any]]  # each item: {body, sent_time, sender_name}
 
 
 class PromptContext(Protocol):

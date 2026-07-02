@@ -9,7 +9,6 @@ from ..dependencies import get_current_user
 from ..models import MemoryGenerationRequest, MemorySearchRequest
 from ..serialization import to_api
 
-
 router = APIRouter()
 
 
@@ -59,4 +58,3 @@ async def search_memory(
         "todo": "Replace ILIKE with pgvector similarity search and hybrid reranking.",
         "results": to_api(rows),
     }
-

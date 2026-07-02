@@ -112,7 +112,10 @@ class TransportTests(unittest.TestCase):
 
     def test_post_maps_http_error_to_embedding_error(self) -> None:
         http_error = urllib.error.HTTPError(
-            "https://api.openai.com/v1/embeddings", 429, "Too Many Requests", None,
+            "https://api.openai.com/v1/embeddings",
+            429,
+            "Too Many Requests",
+            None,
             io.BytesIO(b"rate limited"),
         )
         embedder = OpenAIEmbedder()

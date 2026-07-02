@@ -13,7 +13,6 @@ from ..models import ImportConversationRequest, MessageInput, PersonInput
 from ..persons_service import find_or_create_person
 from ..serialization import to_api
 
-
 router = APIRouter()
 
 
@@ -254,12 +253,14 @@ async def import_conversation(
             )
             stored = await _conversation_with_messages(conn, user_id, str(conversation["id"]))
 
-    return to_api({
-        "conversation": stored["conversation"] if stored else conversation,
-        "messages": stored["messages"] if stored else inserted_messages,
-        "importedMessageCount": len(inserted_messages),
-        "person": person,
-    })
+    return to_api(
+        {
+            "conversation": stored["conversation"] if stored else conversation,
+            "messages": stored["messages"] if stored else inserted_messages,
+            "importedMessageCount": len(inserted_messages),
+            "person": person,
+        }
+    )
 
 
 @router.get("/{conversation_id}")
@@ -274,4 +275,3 @@ async def get_conversation(
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     return to_api(result)
-
