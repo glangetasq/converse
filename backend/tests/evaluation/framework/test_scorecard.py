@@ -112,9 +112,7 @@ class PairwiseSchemaTests(unittest.TestCase):
     def test_preferences_are_abc_tie_enums(self) -> None:
         schema = _scorecard().pairwise_schema()
         self.assertEqual(schema["properties"]["tone"]["type"], "string")
-        self.assertEqual(
-            schema["properties"]["tone"]["enum"], list(PREFERENCE_CHOICES)
-        )
+        self.assertEqual(schema["properties"]["tone"]["enum"], list(PREFERENCE_CHOICES))
 
     def test_strict(self) -> None:
         _assert_strict(self, _scorecard().pairwise_schema())
@@ -126,6 +124,42 @@ class RenderTests(unittest.TestCase):
         self.assertIn("version v1", text)
         self.assertIn("relevance (1-5): on-topic", text)
         self.assertIn("tone (1-3): matches sender voice", text)
+
+
+_MARKDOWN = """
+## Metrics
+
+Score each axis on its scale.
+
+- `relevance` (1-5): on-topic given the thread
+- `tone` (1-3): matches sender voice
+
+## Other
+- ignored: not a metric bullet
+"""
+
+
+class FromMarkdownTests(unittest.TestCase):
+    def test_parses_key_description_and_scale_from_section(self) -> None:
+        sc = Scorecard.from_markdown(_MARKDOWN, version="v1")
+        self.assertEqual(sc.version, "v1")
+        self.assertEqual(sc.metric_keys, ["relevance", "tone"])  # order preserved
+        relevance, tone = sc.metrics
+        self.assertEqual((relevance.description, relevance.scale), ("on-topic given the thread", (1, 5)))
+        self.assertEqual(tone.scale, (1, 3))
+
+    def test_only_the_named_section_is_read(self) -> None:
+        sc = Scorecard.from_markdown(_MARKDOWN, version="v1")
+        self.assertNotIn("ignored", sc.metric_keys)  # bullets outside ## Metrics are skipped
+
+    def test_malformed_bullet_raises(self) -> None:
+        bad = "## Metrics\n- relevance: no scale here\n"
+        with self.assertRaises(ValueError):
+            Scorecard.from_markdown(bad, version="v1")
+
+    def test_missing_section_yields_no_metrics_and_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            Scorecard.from_markdown("## Nope\n- `x` (1-5): y", version="v1")
 
 
 if __name__ == "__main__":

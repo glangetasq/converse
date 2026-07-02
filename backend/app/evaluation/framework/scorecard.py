@@ -5,21 +5,25 @@ SCHEMA CONTRACT."""
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from ...utils import fingerprint
 
-RATIONALE_KEY = "rationale"   # reserved; a metric key can't reuse it
+RATIONALE_KEY = "rationale"  # reserved; a metric key can't reuse it
 
 PREFERENCE_CHOICES = ("a", "b", "tie")
+
+# a metric bullet: "- `key` (lo-hi): description"
+_METRIC_RE = re.compile(r"^-\s*`?(?P<key>[A-Za-z0-9_]+)`?\s*\((?P<lo>\d+)-(?P<hi>\d+)\)\s*:\s*(?P<desc>.+)$")
 
 
 @dataclass(frozen=True)
 class Metric:
     key: str
     description: str
-    scale: tuple[int, int] = (1, 5)   # inclusive
+    scale: tuple[int, int] = (1, 5)  # inclusive
 
     def __post_init__(self) -> None:
         lo, hi = self.scale
@@ -47,6 +51,11 @@ class Scorecard:
         if dupes:
             raise ValueError(f"duplicate metric keys: {dupes}")
 
+    @classmethod
+    def from_markdown(cls, text: str, *, version: str, section: str = "Metrics") -> "Scorecard":
+        """Parse a `## <section>` block of `- `key` (lo-hi): desc` bullets into metrics."""
+        return cls(version=version, metrics=tuple(_parse_metrics(text, section)))
+
     @property
     def metric_keys(self) -> list[str]:
         return [m.key for m in self.metrics]
@@ -61,9 +70,7 @@ class Scorecard:
         return {
             "version": self.version,
             "fingerprint": self.fingerprint,
-            "metrics": [
-                {"key": m.key, "scale": list(m.scale)} for m in self.metrics
-            ],
+            "metrics": [{"key": m.key, "scale": list(m.scale)} for m in self.metrics],
         }
 
     def pointwise_schema(self) -> dict[str, Any]:
@@ -73,10 +80,7 @@ class Scorecard:
 
     def pairwise_schema(self) -> dict[str, Any]:
         """{metric: 'a' | 'b' | 'tie' for each metric} + rationale."""
-        props = {
-            m.key: {"type": "string", "enum": list(PREFERENCE_CHOICES)}
-            for m in self.metrics
-        }
+        props = {m.key: {"type": "string", "enum": list(PREFERENCE_CHOICES)} for m in self.metrics}
         return self._object_schema(props)
 
     def render(self) -> str:
@@ -95,3 +99,25 @@ class Scorecard:
             "properties": props,
             "required": list(props.keys()),
         }
+
+
+def _section_lines(text: str, section: str) -> list[str]:
+    lines, capturing = [], False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            capturing = line[3:].strip().casefold() == section.casefold()
+        elif capturing:
+            lines.append(line)
+    return lines
+
+
+def _parse_metrics(text: str, section: str) -> list[Metric]:
+    metrics = []
+    for line in _section_lines(text, section):
+        if not line.lstrip().startswith("-"):
+            continue  # prose (e.g. the scale legend) between bullets
+        match = _METRIC_RE.match(line.strip())
+        if match is None:
+            raise ValueError(f"unparseable metric bullet: {line!r}")
+        metrics.append(Metric(match["key"], match["desc"].strip(), (int(match["lo"]), int(match["hi"]))))
+    return metrics

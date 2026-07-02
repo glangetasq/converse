@@ -45,6 +45,6 @@ def get_client(model_name: str) -> ProviderClient:
     return _client(provider_for(model_name))
 
 
-def get_genconfig(model_name: str) -> GenConfig:
+def get_genconfig(model_name: str, **kwargs) -> GenConfig:
     provider_for(model_name)  # validate routing
-    return GenConfig(model_name=model_name)
+    return GenConfig(model_name=model_name, **kwargs)
