@@ -58,11 +58,14 @@ class FactoryTests(unittest.TestCase):
     def test_judge_prompts_render_the_candidates(self) -> None:
         case = _case()
         a = Candidate(case_id="c1", arm_name="no_rag", repeat_index=0, text="A msg")
-        b = Candidate(case_id="c1", arm_name="full_rag", repeat_index=0, text="B msg")
+        b = Candidate(
+            case_id="c1", arm_name="full_rag", repeat_index=0, text="B msg", evidence="About Bob: leads infra"
+        )
         pw = judge().prompt.build(case, [a], scorecard())
         pr = judge(mode="pairwise").prompt.build(case, [a, b], scorecard())
         self.assertIn("A msg", pw)
-        for needle in ("Suggestion A", "Suggestion B", "A msg", "B msg"):
+        self.assertIn("(none)", pw)  # no-RAG candidate has no facts
+        for needle in ("Suggestion A", "Suggestion B", "A msg", "B msg", "About Bob: leads infra", "(none)"):
             self.assertIn(needle, pr)
 
 

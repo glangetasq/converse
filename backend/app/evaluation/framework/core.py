@@ -25,6 +25,7 @@ class Candidate:
     repeat_index: int  # 0-based repeat for one (case, arm)
     text: str
     prompt: str | None = None
+    evidence: str | None = None  # facts the arm retrieved, for the judge to score groundedness against
     usage: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
 

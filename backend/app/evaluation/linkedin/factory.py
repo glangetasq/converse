@@ -37,6 +37,7 @@ _JUDGE_FIELDS = {
         "past_conversation",
         "actual_next_message",
         "suggested_next_message",
+        "available_facts",
         "scorecard",
     ),
     "pairwise": (
@@ -45,7 +46,9 @@ _JUDGE_FIELDS = {
         "past_conversation",
         "actual_next_message",
         "suggestion_a",
+        "facts_a",
         "suggestion_b",
+        "facts_b",
         "scorecard",
     ),
 }
@@ -97,9 +100,12 @@ class _JudgePrompt(JudgePromptBuilder):
         }
         if self._mode == "pointwise":
             fields["suggested_next_message"] = candidates[0].text
+            fields["available_facts"] = candidates[0].evidence or "(none)"
         else:
             fields["suggestion_a"] = candidates[0].text
+            fields["facts_a"] = candidates[0].evidence or "(none)"
             fields["suggestion_b"] = candidates[1].text
+            fields["facts_b"] = candidates[1].evidence or "(none)"
         return self._template.substitute(fields)
 
     def spec(self) -> dict:

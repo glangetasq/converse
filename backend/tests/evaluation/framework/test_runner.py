@@ -8,13 +8,14 @@ from app.evaluation.framework.arm import Arm
 from app.evaluation.framework.core import Candidate, Case, PairwiseJudgement, PointwiseJudgement
 from app.evaluation.framework.runner import infer_plan, pair_ab, run_eval
 from app.llm import Completion, GenConfig
+from app.prompting import BuiltPrompt
 
 
 class StubBuilder:
     """Returns a per-case prompt so a client can selectively fail on one case."""
 
-    async def build(self, case: Case) -> str:
-        return f"prompt::{case.id}"
+    async def build(self, case: Case) -> BuiltPrompt:
+        return BuiltPrompt(f"prompt::{case.id}")
 
     def spec(self) -> dict[str, Any]:
         return {"template": "stub"}

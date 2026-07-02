@@ -32,8 +32,8 @@ class Arm:
     ) -> Candidate:
         # a failed generation is a Candidate with .error, not a raised exception
         try:
-            prompt = await self.builder.build(case)
-            completion = await self.client.generate(prompt, self.cfg, limiter=limiter)
+            built = await self.builder.build(case)
+            completion = await self.client.generate(built.prompt, self.cfg, limiter=limiter)
         except Exception as error:  # noqa: BLE001 — errors are data here
             return Candidate(
                 case_id=case.id,
@@ -47,7 +47,8 @@ class Arm:
             arm_name=self.name,
             repeat_index=repeat_index,
             text=completion.text,
-            prompt=prompt,
+            prompt=built.prompt,
+            evidence=built.evidence,
             usage=completion.usage,
         )
 

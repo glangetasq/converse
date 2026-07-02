@@ -21,12 +21,12 @@ class RagAugmentor(Augmentor):
     def __init__(self, config: RetrievalConfig | None = None) -> None:
         self.config = config or RetrievalConfig()
 
-    async def augment(self, context: PromptContext, prompt: str) -> str:
+    async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None]:
         facts = await self._retrieve(context)
         if not facts:
-            return prompt
+            return prompt, None
         block = self._format(facts, context.sender_name, context.recipient_name)
-        return f"{prompt}\n\n{FACTS_HEADER}\n{block}"
+        return f"{prompt}\n\n{FACTS_HEADER}\n{block}", block
 
     async def _retrieve(self, context: PromptContext) -> list[RetrievedFact]:
         missing = [key for key in ("user_id", "person_id") if key not in context.meta]

@@ -37,8 +37,8 @@ def _fact(content: str, *, person_id: str | None = None) -> FactRow:
 class AppendAugmentor(Augmentor):
     name = "append"
 
-    async def augment(self, context: Any, prompt: str) -> str:
-        return prompt + "\n[AUG]"
+    async def augment(self, context: Any, prompt: str) -> tuple[str, str | None]:
+        return prompt + "\n[AUG]", "[AUG]"
 
 
 def _template() -> Template:
@@ -50,18 +50,20 @@ class SuggestionPromptBuilderTests(unittest.TestCase):
         builder = SuggestionPromptBuilder(_template(), "v1")
         ctx = Ctx(thread=[{"sender_name": "Alice", "body": "hi"}])
 
-        prompt = asyncio.run(builder.build(ctx))
+        built = asyncio.run(builder.build(ctx))
 
-        self.assertEqual(prompt, "To Bob from Alice:\nAlice: hi")
+        self.assertEqual(built.prompt, "To Bob from Alice:\nAlice: hi")
+        self.assertIsNone(built.evidence)
 
     def test_augmentor_runs_after_template(self) -> None:
         builder = SuggestionPromptBuilder(_template(), "v1", AppendAugmentor())
         ctx = Ctx(thread=[{"sender_name": "Alice", "body": "hi"}])
 
-        prompt = asyncio.run(builder.build(ctx))
+        built = asyncio.run(builder.build(ctx))
 
-        self.assertTrue(prompt.endswith("\n[AUG]"))
-        self.assertIn("To Bob from Alice:", prompt)
+        self.assertTrue(built.prompt.endswith("\n[AUG]"))
+        self.assertIn("To Bob from Alice:", built.prompt)
+        self.assertEqual(built.evidence, "[AUG]")
 
     def test_spec_pins_fingerprint_and_reports_augment(self) -> None:
         no_aug = SuggestionPromptBuilder(_template(), "v1").spec()
@@ -75,7 +77,7 @@ class SuggestionPromptBuilderTests(unittest.TestCase):
 
 
 class RagAugmentorTests(unittest.TestCase):
-    def _augment(self, facts: list[RetrievedFact], ctx: Ctx | None = None) -> str:
+    def _augment(self, facts: list[RetrievedFact], ctx: Ctx | None = None) -> tuple[str, str | None]:
         ctx = ctx or Ctx(
             thread=[{"sender_name": "Alice", "body": "hi"}],
             meta={"user_id": "u1", "person_id": "p1"},
@@ -93,14 +95,17 @@ class RagAugmentorTests(unittest.TestCase):
             RetrievedFact(fact=_fact("Bob leads infra", person_id="p1"), label="about_them"),
         ]
 
-        out = self._augment(facts)
+        prompt, block = self._augment(facts)
 
-        self.assertTrue(out.startswith("BASE PROMPT"))
-        self.assertIn("Relevant background:", out)
-        self.assertIn("About Alice:", out)
-        self.assertIn("- Alice ships ML", out)
-        self.assertIn("About Bob:", out)
-        self.assertIn("- Bob leads infra", out)
+        self.assertTrue(prompt.startswith("BASE PROMPT"))
+        self.assertIn("Relevant background:", prompt)
+        self.assertIn("About Alice:", prompt)
+        self.assertIn("- Alice ships ML", prompt)
+        self.assertIn("About Bob:", prompt)
+        self.assertIn("- Bob leads infra", prompt)
+        # the surfaced block carries the facts (for the judge) without the prompt-only header
+        self.assertIn("- Alice ships ML", block)
+        self.assertNotIn("Relevant background:", block)
 
     def test_shared_ground_pairs_both_names(self) -> None:
         pair = RetrievedFact(
@@ -109,16 +114,17 @@ class RagAugmentorTests(unittest.TestCase):
             matched=_fact("Bob studied at MIT", person_id="p1"),
         )
 
-        out = self._augment([pair])
+        prompt, _ = self._augment([pair])
 
-        self.assertIn("Shared ground:", out)
-        self.assertIn("Alice: Alice studied at MIT", out)
-        self.assertIn("Bob: Bob studied at MIT", out)
+        self.assertIn("Shared ground:", prompt)
+        self.assertIn("Alice: Alice studied at MIT", prompt)
+        self.assertIn("Bob: Bob studied at MIT", prompt)
 
     def test_empty_facts_leaves_prompt_unchanged(self) -> None:
-        out = self._augment([])
+        prompt, block = self._augment([])
 
-        self.assertEqual(out, "BASE PROMPT")
+        self.assertEqual(prompt, "BASE PROMPT")
+        self.assertIsNone(block)
 
     def test_missing_meta_ids_raises_keyerror(self) -> None:
         ctx = Ctx(thread=[{"sender_name": "Alice", "body": "hi"}], meta={"user_id": "u1"})

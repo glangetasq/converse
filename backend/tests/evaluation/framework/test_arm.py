@@ -7,6 +7,7 @@ from typing import Any
 from app.evaluation.framework.arm import Arm
 from app.evaluation.framework.core import Case
 from app.llm import Completion, GenConfig
+from app.prompting import BuiltPrompt
 
 
 class StubBuilder:
@@ -17,11 +18,11 @@ class StubBuilder:
         self._raises = raises
         self.built_for: list[str] = []
 
-    async def build(self, case: Case) -> str:
+    async def build(self, case: Case) -> BuiltPrompt:
         if self._raises is not None:
             raise self._raises
         self.built_for.append(case.id)
-        return self._prompt
+        return BuiltPrompt(self._prompt)
 
     def spec(self) -> dict[str, Any]:
         return {"template": "stub"}
