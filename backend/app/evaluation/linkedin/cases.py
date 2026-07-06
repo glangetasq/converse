@@ -5,9 +5,9 @@ from collections.abc import Iterable
 import pandas as pd
 
 from ... import db
-from ...models import LoginRequest
+from ...web.models import LoginRequest
 from ...routers.persons import get_person_id_to_name_dict
-from ...users import DEV_USER_DISPLAY_NAME, get_user_id_to_name_dict
+from ...identity.users import DEV_USER_DISPLAY_NAME, get_user_id_to_name_dict
 from ..framework.core import Case
 
 # empty past_context <=> a cold intro, dropped so every case has real thread context

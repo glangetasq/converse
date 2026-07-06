@@ -4,9 +4,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from ..models import LoginRequest
-from ..serialization import to_api
-from ..users import get_or_create_user_by_name, normalize_username
+from ..web.models import LoginRequest
+from ..web.serialization import to_api
+from ..identity.users import get_or_create_user_by_name, normalize_username
 
 router = APIRouter()
 

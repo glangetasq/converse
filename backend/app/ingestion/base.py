@@ -28,7 +28,7 @@ from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
 
 from ..llm.embeddings import get_embedder
-from ..persons_service import find_or_create_person
+from ..identity.persons import find_or_create_person
 
 
 @dataclass

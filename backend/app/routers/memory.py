@@ -5,9 +5,9 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from .. import db
-from ..dependencies import get_current_user
-from ..models import MemoryGenerationRequest, MemorySearchRequest
-from ..serialization import to_api
+from ..web.dependencies import get_current_user
+from ..web.models import MemoryGenerationRequest, MemorySearchRequest
+from ..web.serialization import to_api
 
 router = APIRouter()
 

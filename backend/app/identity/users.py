@@ -4,8 +4,8 @@ import re
 import unicodedata
 from typing import Any
 
-from . import db
-from .config import settings
+from .. import db
+from ..config import settings
 
 # Display name for the canonical local-dev account (keyed by email in settings).
 DEV_USER_DISPLAY_NAME = "Local Dev User"

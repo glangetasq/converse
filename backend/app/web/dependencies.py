@@ -5,7 +5,7 @@ from typing import Any
 from psycopg.types.json import Jsonb
 
 from .serialization import to_api
-from .users import get_or_create_dev_user
+from ..identity.users import get_or_create_dev_user
 
 
 async def get_current_user() -> dict[str, Any]:

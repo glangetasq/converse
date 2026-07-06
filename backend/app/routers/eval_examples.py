@@ -9,9 +9,9 @@ from psycopg.types.json import Jsonb
 
 
 from ..loggers import eval_logger
-from ..models import EvalExampleCreateRequest
+from ..web.models import EvalExampleCreateRequest
 from .persons import get_or_create_person_id_by_name
-from ..users import get_or_create_dev_user_id, normalize_username
+from ..identity.users import get_or_create_dev_user_id, normalize_username
 from .. import db
 
 router = APIRouter()

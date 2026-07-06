@@ -8,10 +8,10 @@ from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
 
 from .. import db
-from ..dependencies import get_current_user
-from ..models import ImportConversationRequest, MessageInput, PersonInput
-from ..persons_service import find_or_create_person
-from ..serialization import to_api
+from ..web.dependencies import get_current_user
+from ..web.models import ImportConversationRequest, MessageInput, PersonInput
+from ..identity.persons import find_or_create_person
+from ..web.serialization import to_api
 
 router = APIRouter()
 

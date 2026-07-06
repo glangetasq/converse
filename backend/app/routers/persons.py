@@ -5,9 +5,9 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from .. import db
-from ..dependencies import get_current_user
-from ..serialization import to_api
-from ..users import normalize_username
+from ..web.dependencies import get_current_user
+from ..web.serialization import to_api
+from ..identity.users import normalize_username
 
 router = APIRouter()
 

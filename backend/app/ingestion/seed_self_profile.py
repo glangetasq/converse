@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .. import db
 from ..config import settings
-from ..users import get_or_create_dev_user_id, get_or_create_user_id_by_name
+from ..identity.users import get_or_create_dev_user_id, get_or_create_user_id_by_name
 from . import get_by_kind
 from .base import content_hash
 

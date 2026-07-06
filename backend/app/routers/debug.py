@@ -5,9 +5,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from .. import db, ingestion
-from ..dependencies import get_current_user
+from ..web.dependencies import get_current_user
 from ..loggers import debug_logger
-from ..models import ParseDumpRequest
+from ..web.models import ParseDumpRequest
 
 router = APIRouter()
 

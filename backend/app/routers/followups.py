@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg.types.json import Jsonb
 
 from .. import db
-from ..dependencies import get_current_user
-from ..models import FollowupFeedbackRequest, FollowupGenerationRequest
-from ..serialization import to_api
+from ..web.dependencies import get_current_user
+from ..web.models import FollowupFeedbackRequest, FollowupGenerationRequest
+from ..web.serialization import to_api
 
 router = APIRouter()
 
