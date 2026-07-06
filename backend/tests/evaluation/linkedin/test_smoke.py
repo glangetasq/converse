@@ -23,10 +23,10 @@ class StubClient:
     def __init__(self, structured: dict) -> None:
         self._structured = structured
 
-    async def generate(self, prompt, cfg, *, limiter=None):
+    async def generate(self, prompt, model, cfg, *, execution=None):
         return Completion(text="stub suggestion", usage={})
 
-    async def generate_structured(self, prompt, schema, cfg, *, limiter=None):
+    async def generate_structured(self, prompt, schema, model, cfg, *, execution=None):
         return dict(self._structured)
 
 
@@ -46,8 +46,9 @@ class FactoryTests(unittest.TestCase):
     def test_arm_variants_flip_only_their_knob(self) -> None:
         self.assertIsNone(no_rag().builder.spec()["augment"])
         self.assertEqual(full_rag(rag=RetrievalConfig(k=12)).builder.spec()["augment"], {"name": "rag", "k": 12})
-        variant = no_rag(gen=GenConfig(model_name="gpt-5.4-nano", temperature=0.5))
+        variant = no_rag(model="gpt-5.4-nano", gen=GenConfig(temperature=0.5))
         self.assertEqual(variant.cfg.temperature, 0.5)
+        self.assertEqual(variant.model, "gpt-5.4-nano")
 
     def test_judge_modes_pick_kind_and_prompt(self) -> None:
         self.assertIsInstance(judge(), PointwiseJudge)

@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Sequence
 
-from ...llm import GenConfig, LlmCallLimiter, ProviderClient
+from ...llm import ONLINE, GenConfig, LlmExecutionStrategy, ProviderClient
 from .core import Candidate, Case, PairwiseJudgement, PointwiseJudgement
 from .scorecard import RATIONALE_KEY, Scorecard
 
@@ -41,12 +41,14 @@ class Judge(ABC):
         name: str,
         scorecard: Scorecard,
         client: ProviderClient,
+        model: str,
         cfg: GenConfig,
         prompt: JudgePromptBuilder,
     ) -> None:
         self.name = name
         self.scorecard = scorecard
         self.client = client
+        self.model = model
         self.cfg = cfg
         self.prompt = prompt
 
@@ -58,6 +60,7 @@ class Judge(ABC):
         return {
             "name": self.name,
             "mode": self.mode,
+            "model": self.model,
             "logic_version": self.logic_version,
             "gen": self.cfg.spec(),
             "prompt": self.prompt.spec(),
@@ -65,44 +68,71 @@ class Judge(ABC):
         }
 
     @abstractmethod
+    def prompts(self, case: Case, candidates: Sequence[Candidate]) -> list[str]:
+        """The judge call(s) for this candidate set — one for pointwise, two (both
+        candidate orders) for pairwise. Raises on the wrong candidate count."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def schema(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def assemble(
+        self,
+        case: Case,
+        candidates: Sequence[Candidate],
+        outcomes: Sequence[dict[str, Any] | BaseException],
+    ) -> PointwiseJudgement | PairwiseJudgement:
+        """Fold the structured result(s) into a judgement; a BaseException outcome
+        becomes the judgement's `.error`. Shared by the online and batch paths."""
+        raise NotImplementedError
+
     async def judge(
         self,
         case: Case,
         candidates: Sequence[Candidate],
         *,
-        limiter: LlmCallLimiter | None = None,
+        execution: LlmExecutionStrategy = ONLINE,
     ) -> PointwiseJudgement | PairwiseJudgement:
-        raise NotImplementedError
+        schema = self.schema()
+        outcomes: list[dict[str, Any] | BaseException] = []
+        for prompt in self.prompts(case, candidates):
+            try:
+                outcomes.append(
+                    await self.client.generate_structured(prompt, schema, self.model, self.cfg, execution=execution)
+                )
+            except Exception as error:  # noqa: BLE001 — errors are data here
+                outcomes.append(error)
+        return self.assemble(case, candidates, outcomes)
 
 
 class PointwiseJudge(Judge):
     mode = "pointwise"
     logic_version = "pointwise-v1"
 
-    async def judge(
+    def prompts(self, case: Case, candidates: Sequence[Candidate]) -> list[str]:
+        if len(candidates) != 1:
+            raise ValueError("pointwise judging scores exactly one candidate")
+        return [self.build_prompt(case, candidates)]
+
+    def schema(self) -> dict[str, Any]:
+        return self.scorecard.pointwise_schema()
+
+    def assemble(
         self,
         case: Case,
         candidates: Sequence[Candidate],
-        *,
-        limiter: LlmCallLimiter | None = None,
+        outcomes: Sequence[dict[str, Any] | BaseException],
     ) -> PointwiseJudgement:
-        if len(candidates) != 1:
-            raise ValueError("pointwise judging scores exactly one candidate")
-        candidate = candidates[0]
         base = PointwiseJudgement(
             judge_name=self.name,
             scorecard_version=self.scorecard.version,
-            subject_candidate_id=candidate.id,
+            subject_candidate_id=candidates[0].id,
         )
-        try:
-            result = await self.client.generate_structured(
-                self.build_prompt(case, candidates),
-                self.scorecard.pointwise_schema(),
-                self.cfg,
-                limiter=limiter,
-            )
-        except Exception as error:  # noqa: BLE001 — errors are data here
-            base.error = f"{type(error).__name__}: {error}"
+        result = outcomes[0]
+        if isinstance(result, BaseException):
+            base.error = f"{type(result).__name__}: {result}"
             return base
         base.scores = {m.key: result[m.key] for m in self.scorecard.metrics}
         base.rationale = result.get(RATIONALE_KEY)
@@ -113,15 +143,21 @@ class PairwiseJudge(Judge):
     mode = "pairwise"
     logic_version = "pairwise-v1"
 
-    async def judge(
+    def prompts(self, case: Case, candidates: Sequence[Candidate]) -> list[str]:
+        if len(candidates) != 2:
+            raise ValueError("pairwise judging compares exactly two candidates")
+        a, b = candidates
+        return [self.build_prompt(case, [a, b]), self.build_prompt(case, [b, a])]
+
+    def schema(self) -> dict[str, Any]:
+        return self.scorecard.pairwise_schema()
+
+    def assemble(
         self,
         case: Case,
         candidates: Sequence[Candidate],
-        *,
-        limiter: LlmCallLimiter | None = None,
+        outcomes: Sequence[dict[str, Any] | BaseException],
     ) -> PairwiseJudgement:
-        if len(candidates) != 2:
-            raise ValueError("pairwise judging compares exactly two candidates")
         a, b = candidates
         base = PairwiseJudgement(
             judge_name=self.name,
@@ -129,18 +165,11 @@ class PairwiseJudge(Judge):
             candidate_a_id=a.id,
             candidate_b_id=b.id,
         )
-        schema = self.scorecard.pairwise_schema()
-        try:
-            # pass 1 shows (a, b); pass 2 shows (b, a)
-            forward = await self.client.generate_structured(
-                self.build_prompt(case, [a, b]), schema, self.cfg, limiter=limiter
-            )
-            reversed_ = await self.client.generate_structured(
-                self.build_prompt(case, [b, a]), schema, self.cfg, limiter=limiter
-            )
-        except Exception as error:  # noqa: BLE001 — errors are data here
+        error = next((o for o in outcomes if isinstance(o, BaseException)), None)
+        if error is not None:
             base.error = f"{type(error).__name__}: {error}"
             return base
+        forward, reversed_ = outcomes
         base.preference = {
             m.key: self._reconcile(forward.get(m.key), reversed_.get(m.key)) for m in self.scorecard.metrics
         }

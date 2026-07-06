@@ -10,7 +10,7 @@ from .core import (
     PointwiseJudgement,
 )
 from .judges import Judge, JudgePromptBuilder, PairwiseJudge, PointwiseJudge
-from .results import load_run, save_run
+from .results import load_run, run_exists, save_run
 from .runner import EvalRun, run_eval
 from .scorecard import Metric, Scorecard
 
@@ -31,5 +31,6 @@ __all__ = [
     "Scorecard",
     "load_run",
     "run_eval",
+    "run_exists",
     "save_run",
 ]

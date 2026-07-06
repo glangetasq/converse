@@ -36,7 +36,7 @@ class StubClient:
         self._raises = raises
         self.prompts: list[str] = []
 
-    async def generate(self, prompt: str, cfg: GenConfig, *, limiter: Any = None) -> Completion:
+    async def generate(self, prompt: str, model: str, cfg: GenConfig, *, execution: Any = None) -> Completion:
         self.prompts.append(prompt)
         if self._raises is not None:
             raise self._raises
@@ -48,7 +48,7 @@ def _case() -> Case:
 
 
 def _arm(builder: Any, client: Any) -> Arm:
-    return Arm(name="no_rag", builder=builder, client=client, cfg=GenConfig(model_name="gpt-5.4-nano"))
+    return Arm(name="no_rag", builder=builder, client=client, model="gpt-5.4-nano", cfg=GenConfig())
 
 
 class ArmRunTests(unittest.TestCase):
@@ -92,7 +92,7 @@ class ArmRunTests(unittest.TestCase):
 
         self.assertEqual(spec["name"], "no_rag")
         self.assertEqual(spec["builder"], {"template": "stub"})
-        self.assertEqual(spec["gen"]["model_name"], "gpt-5.4-nano")
+        self.assertEqual(spec["model"], "gpt-5.4-nano")
 
 
 if __name__ == "__main__":

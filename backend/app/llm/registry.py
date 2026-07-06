@@ -4,7 +4,6 @@ from functools import lru_cache
 
 from .base import ProviderClient
 from .claude import ClaudeClient
-from .generation import GenConfig
 from .openai import OpenAIClient
 
 # Provider routing is by ID prefix, so new/renamed models work without editing this
@@ -43,8 +42,3 @@ def _client(provider: str) -> ProviderClient:
 
 def get_client(model_name: str) -> ProviderClient:
     return _client(provider_for(model_name))
-
-
-def get_genconfig(model_name: str, **kwargs) -> GenConfig:
-    provider_for(model_name)  # validate routing
-    return GenConfig(model_name=model_name, **kwargs)

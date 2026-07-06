@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
+import pandas as pd
+
 from ... import db
 from ...models import LoginRequest
 from ...routers.persons import get_person_id_to_name_dict
@@ -25,6 +29,30 @@ def _sender_name(account_name: str | None) -> str:
     if not account_name or account_name == DEV_USER_DISPLAY_NAME:
         return DEV_SENDER_NAME
     return account_name
+
+
+async def thread_depths(case_ids: Iterable[str] | None = None) -> dict[str, int]:
+    """Message count of each case's thread, keyed by `case_id` (the eval_examples id as
+    text). Depth is a per-case property, so one value regardless of pointwise/pairwise."""
+    where = ""
+    params: tuple = ()
+    if case_ids is not None:
+        ids = [int(c) for c in case_ids]
+        if not ids:
+            return {}
+        where = "WHERE id = ANY(%s)"
+        params = (ids,)
+    rows = await db.fetch_all(
+        f"SELECT id::text AS case_id, jsonb_array_length(past_context) AS depth FROM eval_examples {where}",
+        params,
+    )
+    return {row["case_id"]: row["depth"] for row in rows}
+
+
+async def attach_thread_depth(df: pd.DataFrame) -> pd.DataFrame:
+    """Add a `thread_depth` column to a load_run frame by joining on `case_id`."""
+    depths = await thread_depths(df["case_id"].unique())
+    return df.assign(thread_depth=df["case_id"].map(depths))
 
 
 async def load_cases() -> list[Case]:

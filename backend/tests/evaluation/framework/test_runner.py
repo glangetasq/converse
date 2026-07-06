@@ -25,7 +25,7 @@ class StubClient:
     def __init__(self, *, fail_prompts: set[str] | None = None) -> None:
         self._fail = fail_prompts or set()
 
-    async def generate(self, prompt: str, cfg: GenConfig, *, limiter: Any = None) -> Completion:
+    async def generate(self, prompt: str, model: str, cfg: GenConfig, *, execution: Any = None) -> Completion:
         if prompt in self._fail:
             raise RuntimeError("boom")
         return Completion(text=f"reply to {prompt}", usage={"total_tokens": 1})
@@ -40,7 +40,7 @@ class RecordingJudge:
     def __init__(self) -> None:
         self.seen: list[tuple[str, ...]] = []
 
-    async def judge(self, case: Case, candidates: Sequence[Candidate], *, limiter: Any = None) -> Any:
+    async def judge(self, case: Case, candidates: Sequence[Candidate], *, execution: Any = None) -> Any:
         self.seen.append(tuple(c.id for c in candidates))
         if len(candidates) == 1:
             return PointwiseJudgement(
@@ -61,12 +61,8 @@ class RecordingJudge:
         return {"name": "j", "mode": self.mode}
 
 
-def _cfg() -> GenConfig:
-    return GenConfig(model_name="gpt-5.4-nano")
-
-
 def _arm(name: str, client: Any | None = None) -> Arm:
-    return Arm(name=name, builder=StubBuilder(), client=client or StubClient(), cfg=_cfg())
+    return Arm(name=name, builder=StubBuilder(), client=client or StubClient(), model="gpt-5.4-nano", cfg=GenConfig())
 
 
 def _cases(*ids: str) -> list[Case]:

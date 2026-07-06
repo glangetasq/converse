@@ -14,8 +14,8 @@ from abc import ABC, abstractmethod
 from dataclasses import replace
 from typing import Any
 
-from .generation import Completion, GenConfig
-from .limiter import LlmCallLimiter
+from .generation import BatchRequest, Completion, GenConfig
+from .execution import ONLINE, LlmExecutionStrategy
 
 
 class ModelError(RuntimeError):
@@ -42,7 +42,7 @@ class ProviderClient(ABC):
         self.timeout_seconds = timeout_seconds or self.default_timeout_seconds
 
     @abstractmethod
-    def build_body(self, prompt: str, cfg: GenConfig) -> dict[str, Any]:
+    def build_body(self, prompt: str, model: str, cfg: GenConfig) -> dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -53,14 +53,59 @@ class ProviderClient(ABC):
     def build_headers(self) -> dict[str, str]:
         raise NotImplementedError
 
+    # Batch API hooks: providers override these three; run_batch orchestrates them.
+    def submit_batch(self, requests: list[BatchRequest]) -> str:
+        raise NotImplementedError(f"{self.suite} does not support batch submission")
+
+    def batch_done(self, batch_id: str) -> bool:
+        """True once the batch is finished; raises ModelError if it failed/expired."""
+        raise NotImplementedError
+
+    def batch_results(self, batch_id: str) -> dict[str, tuple[str, Any]]:
+        """custom_id -> ("ok", raw_response) | ("error", message). Raw responses are
+        the same shape `parse` consumes for online calls."""
+        raise NotImplementedError
+
+    async def run_batch(
+        self,
+        requests: list[BatchRequest],
+        *,
+        poll_interval: float = 30.0,
+    ) -> dict[str, Completion | ModelError]:
+        """Submit a batch, poll to completion, and return one result per custom_id.
+        Per-item failures are captured as ModelError rather than raised."""
+        if not requests:
+            return {}
+        batch_id = await asyncio.to_thread(self.submit_batch, requests)
+        while not await asyncio.to_thread(self.batch_done, batch_id):
+            await asyncio.sleep(poll_interval)
+        entries = await asyncio.to_thread(self.batch_results, batch_id)
+        out: dict[str, Completion | ModelError] = {}
+        for req in requests:
+            entry = entries.get(req.custom_id)
+            if entry is None:
+                out[req.custom_id] = ModelError(f"{self.suite} batch returned no result for {req.custom_id}")
+                continue
+            kind, payload = entry
+            if kind != "ok":
+                out[req.custom_id] = ModelError(f"{self.suite} batch item failed: {payload}")
+                continue
+            try:
+                out[req.custom_id] = self.parse(payload)
+            except ModelError as error:
+                out[req.custom_id] = error
+        return out
+
     async def generate(
         self,
         prompt: str,
+        model: str,
         cfg: GenConfig,
         *,
-        limiter: LlmCallLimiter | None = None,
+        execution: LlmExecutionStrategy = ONLINE,
     ) -> Completion:
-        body = self.build_body(prompt, cfg)
+        body = self.build_body(prompt, model, cfg)
+        limiter = execution.limiter
         if limiter is not None:
             async with limiter:
                 raw = await asyncio.to_thread(self._post_json, body)
@@ -72,11 +117,12 @@ class ProviderClient(ABC):
         self,
         prompt: str,
         schema: dict[str, Any],
+        model: str,
         cfg: GenConfig,
         *,
-        limiter: LlmCallLimiter | None = None,
+        execution: LlmExecutionStrategy = ONLINE,
     ) -> dict[str, Any]:
-        completion = await self.generate(prompt, replace(cfg, schema=schema), limiter=limiter)
+        completion = await self.generate(prompt, model, replace(cfg, schema=schema), execution=execution)
         try:
             return json.loads(completion.text)
         except json.JSONDecodeError as error:
@@ -132,6 +178,35 @@ class ProviderClient(ABC):
         if not isinstance(decoded, dict):
             raise ModelError(f"{self.suite} returned a non-object JSON response", response_body=decoded)
         return decoded
+
+    def _call(
+        self,
+        method: str,
+        path: str,
+        *,
+        body: Any = None,
+        extra_headers: dict[str, str] | None = None,
+        expect_json: bool = True,
+    ) -> Any:
+        """Blocking request to `path` (relative to base_url, or an absolute URL) reusing
+        this client's auth + error handling. Used by the Batch API hooks."""
+        url = path if path.startswith("http") else f"{self.base_url}/{path.lstrip('/')}"
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        headers = dict(self.build_headers())
+        if extra_headers is not None:
+            headers.update(extra_headers)
+        request = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                text = response.read().decode("utf-8")
+        except urllib.error.HTTPError as error:
+            parsed = self._decode_json_or_text(error.read().decode("utf-8", errors="replace"))
+            raise ModelError(
+                self._format_http_error(error.code, parsed), status_code=error.code, response_body=parsed
+            ) from error
+        except urllib.error.URLError as error:
+            raise ModelError(f"Unable to reach {self.suite}: {error.reason}") from error
+        return self._decode_json_or_text(text) if expect_json else text
 
     def _format_http_error(self, status_code: int, response_body: Any) -> str:
         if isinstance(response_body, dict):

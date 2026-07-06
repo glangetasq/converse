@@ -36,7 +36,9 @@ class StubStructuredClient:
         self._raises = raises
         self.calls: list[tuple[str, dict]] = []
 
-    async def generate_structured(self, prompt: str, schema: dict, cfg: GenConfig, *, limiter: Any = None) -> dict:
+    async def generate_structured(
+        self, prompt: str, schema: dict, model: str, cfg: GenConfig, *, execution: Any = None
+    ) -> dict:
         self.calls.append((prompt, schema))
         if self._raises is not None:
             raise self._raises
@@ -52,11 +54,11 @@ def _cand(arm: str) -> Candidate:
 
 
 def _pointwise(client: Any) -> PointwiseJudge:
-    return PointwiseJudge("j", SCORECARD, client, GenConfig(model_name="m"), StubJudgePromptBuilder())
+    return PointwiseJudge("j", SCORECARD, client, "m", GenConfig(), StubJudgePromptBuilder())
 
 
 def _pairwise(client: Any) -> PairwiseJudge:
-    return PairwiseJudge("j", SCORECARD, client, GenConfig(model_name="m"), StubJudgePromptBuilder())
+    return PairwiseJudge("j", SCORECARD, client, "m", GenConfig(), StubJudgePromptBuilder())
 
 
 class JudgeSpecTests(unittest.TestCase):
@@ -65,7 +67,7 @@ class JudgeSpecTests(unittest.TestCase):
         self.assertEqual(spec["name"], "j")
         self.assertEqual(spec["mode"], "pairwise")
         self.assertEqual(spec["logic_version"], "pairwise-v1")
-        self.assertEqual(spec["gen"]["model_name"], "m")
+        self.assertEqual(spec["model"], "m")
         self.assertEqual(spec["scorecard"]["fingerprint"], SCORECARD.fingerprint)
 
     def test_pointwise_and_pairwise_logic_versions_differ(self) -> None:

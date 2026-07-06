@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from ...assets import ASSETS_DIR, AssetLibrary
-from ...llm import GenConfig, get_client, get_genconfig
+from ...llm import GenConfig, get_client
 from ...prompting import RagAugmentor, SuggestionPromptBuilder
 from ...retrieval import DEFAULT_CONFIG, RetrievalConfig
 from ...utils import render_thread
@@ -72,7 +72,7 @@ def arm(
     template = LIBRARY.load_template(SUGGEST, suggest, fields=_SUGGEST_FIELDS)
     augment = RagAugmentor(rag) if rag is not None else None
     builder = SuggestionPromptBuilder(template, suggest, augment)
-    return Arm(name, builder, get_client(model), gen or get_genconfig(model))
+    return Arm(name, builder, get_client(model), model, gen or GenConfig())
 
 
 def no_rag(**kwargs) -> Arm:
@@ -127,6 +127,7 @@ def judge(
         f"linkedin_{mode}",
         scorecard(scorecard_version),
         get_client(model),
-        gen or get_genconfig(model),
+        model,
+        gen or GenConfig(),
         prompt,
     )

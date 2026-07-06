@@ -5,7 +5,7 @@ from typing import Any
 
 from ..config import settings
 from .base import ModelError, ProviderClient
-from .generation import Completion, GenConfig
+from .generation import BatchRequest, Completion, GenConfig
 
 STRUCTURED_TOOL_NAME = "respond"
 
@@ -29,9 +29,9 @@ class ClaudeClient(ProviderClient):
             timeout_seconds=timeout_seconds,
         )
 
-    def build_body(self, prompt: str, cfg: GenConfig) -> dict[str, Any]:
+    def build_body(self, prompt: str, model: str, cfg: GenConfig) -> dict[str, Any]:
         body: dict[str, Any] = {
-            "model": cfg.model_name,
+            "model": model,
             "max_tokens": cfg.max_tokens,
             "messages": [{"role": "user", "content": self.validate_prompt(prompt)}],
         }
@@ -73,3 +73,34 @@ class ClaudeClient(ProviderClient):
             "x-api-key": self.api_key,
             "anthropic-version": self.anthropic_version,
         }
+
+    def submit_batch(self, requests: list[BatchRequest]) -> str:
+        # Message Batches (GA): requests are inline, params == the /v1/messages body.
+        payload = {
+            "requests": [
+                {"custom_id": r.custom_id, "params": self.build_body(r.prompt, r.model, r.cfg)} for r in requests
+            ]
+        }
+        return self._call("POST", "/v1/messages/batches", body=payload)["id"]
+
+    def batch_done(self, batch_id: str) -> bool:
+        status = self._call("GET", f"/v1/messages/batches/{batch_id}").get("processing_status")
+        if status == "canceling":
+            raise ModelError(f"Claude batch {batch_id} is being canceled", response_body={"status": status})
+        return status == "ended"
+
+    def batch_results(self, batch_id: str) -> dict[str, tuple[str, Any]]:
+        results_url = self._call("GET", f"/v1/messages/batches/{batch_id}").get("results_url")
+        if not results_url:
+            raise ModelError(f"Claude batch {batch_id} ended without a results_url")
+        out: dict[str, tuple[str, Any]] = {}
+        for line in self._call("GET", results_url, expect_json=False).splitlines():
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            result = record.get("result") or {}
+            if result.get("type") == "succeeded":
+                out[record["custom_id"]] = ("ok", result.get("message") or {})
+            else:
+                out[record["custom_id"]] = ("error", json.dumps(result.get("error") or result))
+        return out

@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS eval_runs (
   samples integer NOT NULL,
   label text,
   -- what GENERATED the run: Arm.spec() per arm, in order (arms[0]='a')
-  --   {name, builder: {version, fingerprint, augment}, gen: GenConfig}
+  --   {name, model, builder: {version, fingerprint, augment}, gen: GenConfig (sampling only)}
   arm_specs jsonb NOT NULL,
   -- what SCORED it, symmetric to arm_specs: Judge.spec() per judge
-  --   {name, mode, logic_version, gen, prompt (fingerprinted for template builders), scorecard: {version, fingerprint, metrics}}
+  --   {name, mode, model, logic_version, gen, prompt (fingerprinted for template builders), scorecard: {version, fingerprint, metrics}}
   judge_specs jsonb NOT NULL DEFAULT '[]'::jsonb,
   meta jsonb NOT NULL DEFAULT '{}'::jsonb,  -- meta.git = {commit, dirty}: the harness commit that ran it
   created_at timestamptz NOT NULL DEFAULT now()
