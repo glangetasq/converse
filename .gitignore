@@ -9,6 +9,11 @@
 *apikey*
 relay/.local/
 
+# Python / Jupyter artifacts
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
 # Local databases and data dumps
 *.db
 *.db-*
