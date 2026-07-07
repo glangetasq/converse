@@ -1,186 +1,185 @@
-const DEFAULT_TONES = ["informal", "conversational"];
-const RESUME_STORAGE_KEY = "savedResume";
 const CURRENT_USER_STORAGE_KEY = "current_user";
 const CURRENT_USER_ID_STORAGE_KEY = "current_user_id";
+const SELECTED_MODEL_STORAGE_KEY = "selected_model";
+const TAB_STATE_PREFIX = "tabState:";
+const TAB_STATE_TTL_MS = 30 * 60 * 1000;
 const PARSE_RETRY_DELAY_MS = 250;
 const PARSE_RETRY_TIMEOUT_MS = 3500;
-const PARSE_DUMP_ENDPOINT = "http://localhost:3000/api/debug/parse_dump";
+const MESSAGING_PARSER_ID = "linkedin-messaging";
+const PROFILE_PARSER_ID = "linkedin-profile";
+const DEFAULT_SELF_NAME = "Quentin Glangetas";
+const SELF_RATING_LABELS = ["very poor", "poor", "neutral", "good", "very good"];
+const OTHER_RATING_LABELS = ["unhelpful", "confused", "neutral", "good", "very good"];
 const PARSER_FILES = [
   "frontend/content/parsing/runtime.js",
   "frontend/content/parsing/helpers.js",
   "frontend/content/parsing/execute.js",
   "frontend/content/parsing/parsers/linkedin-profile.js",
-  "frontend/content/parsing/parsers/linkedin-messaging.js",
-  "frontend/content/parsing/parsers/job-posting.js"
+  "frontend/content/parsing/parsers/linkedin-messaging.js"
 ];
 const SUGGESTION_INJECTION_FILE = "frontend/content/injection/suggestion-injection.js";
 
+const viewButtons = Array.from(document.querySelectorAll("[data-view-button]"));
 const composerView = document.getElementById("composer-view");
 const resultsView = document.getElementById("results-view");
-const generateButton = document.getElementById("generate-button");
-const closeButton = document.getElementById("close-button");
-const resultsCloseButton = document.getElementById("results-close-button");
-const retryButton = document.getElementById("retry-button");
-const regenerateButton = document.getElementById("regenerate-button");
-const llmModalBackdrop = document.getElementById("llm-modal-backdrop");
-const llmModal = document.getElementById("llm-modal");
-const llmModalCloseButton = document.getElementById("llm-modal-close-button");
-const llmModalOpenButtons = Array.from(document.querySelectorAll(".llm-modal-open-button"));
-const parseTabOpenButtons = Array.from(document.querySelectorAll(".parse-tab-open-button"));
-const loginPageOpenButtons = Array.from(document.querySelectorAll(".login-page-open-button"));
-const modeSelects = Array.from(document.querySelectorAll("[data-mode-select]"));
-const sourceSiteBadges = Array.from(document.querySelectorAll("[data-source-site]"));
+const workbenchView = document.getElementById("workbench-view");
 const currentUserBadges = Array.from(document.querySelectorAll("[data-current-user]"));
-const debugModalBackdrop = document.getElementById("debug-modal-backdrop");
-const debugModal = document.getElementById("debug-modal");
-const debugModalCloseButton = document.getElementById("debug-modal-close-button");
-const debugModalOpenButtons = Array.from(document.querySelectorAll(".debug-modal-open-button"));
-const debugParseTab = document.getElementById("debug-parse-tab");
-const debugPromptTab = document.getElementById("debug-prompt-tab");
-const debugParsePanel = document.getElementById("debug-parse-panel");
-const debugPromptPanel = document.getElementById("debug-prompt-panel");
-const debugParseOutput = document.getElementById("debug-parse-output");
-const debugPromptOutput = document.getElementById("debug-prompt-output");
-const debugStatusOutput = document.getElementById("debug-status-output");
-const saveProfileJsonButton = document.getElementById("save-profile-json-button");
-const configurationToggle = document.getElementById("configuration-toggle");
-const configurationPanel = document.getElementById("configuration-panel");
-const directionsToggle = document.getElementById("directions-toggle");
-const directionsPanel = document.getElementById("directions-panel");
-const instructionsInput = document.getElementById("instructions-input");
+const sourceSiteBadges = Array.from(document.querySelectorAll("[data-source-site]"));
+const loginOpenButton = document.getElementById("login-open-button");
+const modelSelect = document.getElementById("model-select");
 const contextInput = document.getElementById("context-input");
-const llmProviderSelect = document.getElementById("llm-provider-select");
-const llmBaseUrlInput = document.getElementById("llm-base-url-input");
-const llmPathInput = document.getElementById("llm-path-input");
-const llmModelSelect = document.getElementById("llm-model-select");
-const llmSaveButton = document.getElementById("llm-save-button");
-const llmStatusOutput = document.getElementById("llm-status-output");
-const languageGroup = document.getElementById("language-group");
-const toneGroup = document.getElementById("tone-group");
-const toneReset = document.getElementById("tone-reset");
-const lengthUnitGroup = document.getElementById("length-unit-group");
-const lengthValueGroup = document.getElementById("length-value-group");
+const generateButton = document.getElementById("generate-button");
+const composerStatus = document.getElementById("composer-status");
 const generationLoader = document.getElementById("generation-loader");
-const generationErrorBanner = document.getElementById("generation-error-banner");
+const generationError = document.getElementById("generation-error");
 const generationErrorTitle = document.getElementById("generation-error-title");
 const generationErrorDetail = document.getElementById("generation-error-detail");
-const suggestionsPanel = document.getElementById("suggestions-panel");
-const regenerateConfigurationToggle = document.getElementById("regenerate-configuration-toggle");
-const regenerateConfigurationPanel = document.getElementById("regenerate-configuration-panel");
-const regenerateSuggestionGroup = document.getElementById("regenerate-suggestion-group");
-const regenerateInstructionsInput = document.getElementById("regenerate-instructions-input");
-const copyButtons = Array.from(document.querySelectorAll(".copy-button"));
-const pickButtons = Array.from(document.querySelectorAll(".pick-button"));
-const suggestionOutputs = [
-  document.getElementById("suggestion-1-output"),
-  document.getElementById("suggestion-2-output"),
-  document.getElementById("suggestion-3-output")
-];
-const suggestionOutputIds = new Set(
-  suggestionOutputs
-    .map((output) => output?.id)
-    .filter(Boolean)
-);
-const regenerateSuggestionButtons = Array.from(
-  regenerateSuggestionGroup?.querySelectorAll("[data-regenerate-suggestion-index]") ?? []
-);
-const promptFileCache = new Map();
+const suggestionPanel = document.getElementById("suggestion-panel");
+const suggestionOutput = document.getElementById("suggestion-output");
+const evidenceDetails = document.getElementById("evidence-details");
+const evidenceOutput = document.getElementById("evidence-output");
+const pickButton = document.getElementById("pick-button");
+const copySuggestionButton = document.getElementById("copy-suggestion-button");
+const backButton = document.getElementById("back-button");
+const regenerateButton = document.getElementById("regenerate-button");
+const refreshParseButton = document.getElementById("refresh-parse-button");
+const saveProfileButton = document.getElementById("save-profile-button");
+const saveExampleButton = document.getElementById("save-example-button");
+const previewToggleButton = document.getElementById("preview-toggle-button");
+const workbenchStatus = document.getElementById("workbench-status");
+const parsePanel = document.getElementById("parse-panel");
+const messageList = document.getElementById("message-list");
+const parseJson = document.getElementById("parse-json");
+const previewPanel = document.getElementById("preview-panel");
+const promptPreviewOutput = document.getElementById("prompt-preview-output");
+const copyPromptButton = document.getElementById("copy-prompt-button");
 
-const formState = {
-  modeId: "auto",
-  language: "auto",
-  tones: [...DEFAULT_TONES],
-  lengthUnit: "characters",
-  lengthValue: "auto"
+const state = {
+  windowId: Number.NaN,
+  tabId: Number.NaN,
+  tabUrl: "",
+  view: "composer",
+  currentUser: "",
+  suggestion: "",
+  generationId: null,
+  evidence: null,
+  generationState: "idle",
+  parseSequence: 0,
+  generateSequence: 0,
+  workbench: {
+    parse: null,
+    selections: [],
+    previewVisible: false
+  }
 };
-const regenerateFormState = {
-  selectedSuggestionIndices: []
-};
 
-const urlParams = new URLSearchParams(window.location.search);
-let sourceUrl = urlParams.get("sourceUrl") ?? "";
-const sourceTabIdValue = urlParams.get("sourceTabId");
-let sourceTabId = sourceTabIdValue === null ? Number.NaN : Number(sourceTabIdValue);
-let lastLlmModalTrigger = null;
-let lastDebugModalTrigger = null;
-let debugLoadSequence = 0;
-let savedResume = null;
-let savedResumeLoadPromise = null;
-
-async function parseSourceTab(modeId = formState.modeId) {
-  if (!Number.isInteger(sourceTabId)) {
-    return {
-      status: "failed_to_parse_with_appropriate_methodology",
-      error: "Source tab id is unavailable."
-    };
+function normalizeErrorMessage(value, fallback = "Something went wrong.") {
+  if (typeof value !== "string") {
+    return fallback;
   }
 
-  await chrome.scripting.executeScript({
-    target: { tabId: sourceTabId },
-    files: PARSER_FILES
-  });
-
-  const [{ result }] = await chrome.scripting.executeScript({
-    target: { tabId: sourceTabId },
-    func: async (parserIdOverride, retryDelayMs, retryTimeoutMs) => {
-      if (!globalThis.ConverseParsing?.parseCurrentPageWithRetry) {
-        return {
-          status: "failed_to_parse_with_appropriate_methodology",
-          error: "Parser runtime is unavailable on the current page."
-        };
-      }
-
-      return globalThis.ConverseParsing.parseCurrentPageWithRetry(
-        parserIdOverride,
-        retryDelayMs,
-        retryTimeoutMs
-      );
-    },
-    args: [getModeConfig(modeId)?.parserId ?? null, PARSE_RETRY_DELAY_MS, PARSE_RETRY_TIMEOUT_MS]
-  });
-
-  return result;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized || fallback;
 }
 
-function getPromptingConfig() {
-  const config = globalThis.ConversePrompting;
-  if (!config?.globalPromptPath) {
-    throw new Error("Prompt configuration is unavailable.");
+function errorText(error) {
+  return normalizeErrorMessage(error instanceof Error ? error.message : String(error));
+}
+
+function normalizeName(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isSelfSender(sender) {
+  return normalizeName(sender) === normalizeName(state.currentUser || DEFAULT_SELF_NAME);
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function setStatus(element, message, tone = "muted") {
+  if (!element) {
+    return;
   }
 
-  return config;
+  element.textContent = message;
+  element.classList.toggle("is-success", tone === "success");
+  element.classList.toggle("is-error", tone === "error");
 }
 
-function getModeConfig(modeId = formState.modeId) {
-  const config = getPromptingConfig();
-  const fallbackMode = config.modes?.auto;
-  return config.modes?.[modeId] ?? fallbackMode ?? null;
-}
+// --- views ---------------------------------------------------------------
 
-function syncModeSelects() {
-  modeSelects.forEach((select) => {
-    select.value = formState.modeId;
+function setView(view) {
+  state.view = view;
+  const showingComposer = view === "composer";
+  const showingResults = view === "results";
+  const showingWorkbench = view === "workbench";
+
+  composerView.hidden = !showingComposer;
+  resultsView.hidden = !showingResults;
+  workbenchView.hidden = !showingWorkbench;
+
+  viewButtons.forEach((button) => {
+    const target = button.dataset.viewButton;
+    // the compose tab stays lit for the results view: results is compose's outcome
+    const isSelected = target === view || (target === "composer" && showingResults);
+    button.classList.toggle("is-selected", isSelected);
   });
-  resizeModeSelectsToSelectedOption();
 }
 
-function populateModeOptions() {
-  const config = getPromptingConfig();
-  const modes = Object.values(config.modes ?? {});
+function openView(view) {
+  setView(view);
+  scheduleTabStateSave();
 
-  modeSelects.forEach((select) => {
-    select.replaceChildren();
+  if (view === "workbench" && !state.workbench.parse) {
+    refreshWorkbenchParse();
+  }
+}
 
-    modes.forEach((mode) => {
-      const option = document.createElement("option");
-      option.value = mode.id;
-      option.textContent = mode.label;
-      select.append(option);
-    });
+function setResultsState(resultsState) {
+  state.generationState = resultsState;
+  generationLoader.hidden = resultsState !== "loading";
+  generationError.hidden = resultsState !== "error";
+  suggestionPanel.hidden = resultsState !== "suggestion";
+
+  const busy = resultsState === "loading";
+  generateButton.disabled = busy;
+  regenerateButton.disabled = busy;
+}
+
+function renderSuggestion() {
+  suggestionOutput.value = state.suggestion;
+  evidenceDetails.hidden = !state.evidence;
+  evidenceOutput.textContent = state.evidence ?? "";
+  pickButton.disabled = !state.suggestion.trim();
+  copySuggestionButton.disabled = !state.suggestion.trim();
+  setResultsState("suggestion");
+  window.requestAnimationFrame(() => {
+    autosizeSuggestionOutput();
   });
-
-  syncModeSelects();
 }
+
+function renderGenerationError(title, detail) {
+  generationErrorTitle.textContent = title;
+  generationErrorDetail.textContent = detail;
+  setResultsState("error");
+}
+
+function autosizeSuggestionOutput() {
+  suggestionOutput.style.height = "auto";
+  const maxHeight = Math.round(window.innerHeight * 0.5);
+  const targetHeight = Math.min(suggestionOutput.scrollHeight + 2, maxHeight);
+  suggestionOutput.style.height = `${targetHeight}px`;
+  suggestionOutput.style.overflowY = suggestionOutput.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
+// --- badges ---------------------------------------------------------------
 
 function getSourceSiteLabel(url) {
   if (!url) {
@@ -188,329 +187,242 @@ function getSourceSiteLabel(url) {
   }
 
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    const parts = hostname.split(".").filter(Boolean);
-    const meaningfulParts = parts.filter((part) => !["www", "m", "web", "mail"].includes(part));
-
-    if (meaningfulParts.length >= 2) {
-      return meaningfulParts.at(-2);
+    const parsed = new URL(url);
+    if (parsed.protocol === "chrome:" || parsed.protocol === "chrome-extension:") {
+      return "";
     }
 
-    return meaningfulParts[0] ?? hostname;
+    return parsed.hostname.replace(/^www\./, "");
   } catch (_error) {
     return "";
   }
 }
 
-async function loadSavedSourceContext() {
-  if (sourceUrl && Number.isInteger(sourceTabId)) {
-    return;
-  }
-
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "converse:get-side-panel-source"
-    });
-    const source = response?.source;
-
-    if (!sourceUrl && typeof source?.sourceUrl === "string") {
-      sourceUrl = source.sourceUrl;
-    }
-
-    if (!Number.isInteger(sourceTabId) && Number.isInteger(source?.sourceTabId)) {
-      sourceTabId = source.sourceTabId;
-    }
-  } catch (_error) {
-    // The badge can stay hidden if no source context is available.
-  }
-}
-
-async function getActiveBrowserTab() {
-  const [activeTab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
-  });
-  return activeTab ?? null;
-}
-
-async function isViewingSourceTab() {
-  if (!Number.isInteger(sourceTabId)) {
-    return false;
-  }
-
-  try {
-    const activeTab = await getActiveBrowserTab();
-    return activeTab?.id === sourceTabId;
-  } catch (_error) {
-    return false;
-  }
-}
-
-async function renderSourceSiteBadge() {
-  await loadSavedSourceContext();
-
-  const siteLabel = getSourceSiteLabel(sourceUrl);
-  const isCurrentSource = await isViewingSourceTab();
-  const displayText = siteLabel && !isCurrentSource
-    ? `${siteLabel} away`
-    : siteLabel;
-
+function renderSourceBadge() {
+  const label = getSourceSiteLabel(state.tabUrl);
   sourceSiteBadges.forEach((badge) => {
-    badge.textContent = displayText;
-    badge.hidden = !siteLabel;
-    badge.classList.toggle("is-away", Boolean(siteLabel && !isCurrentSource));
+    badge.textContent = label;
+    badge.hidden = !label;
   });
-}
-
-function getStoredCurrentUserDisplay(authState) {
-  const currentUser = typeof authState?.[CURRENT_USER_STORAGE_KEY] === "string"
-    ? authState[CURRENT_USER_STORAGE_KEY].trim()
-    : "";
-  const currentUserId = typeof authState?.[CURRENT_USER_ID_STORAGE_KEY] === "string"
-    ? authState[CURRENT_USER_ID_STORAGE_KEY].trim()
-    : "";
-
-  return {
-    currentUser,
-    currentUserId
-  };
 }
 
 async function renderCurrentUserBadge() {
-  const authState = await chrome.storage.local.get([
-    CURRENT_USER_STORAGE_KEY,
-    CURRENT_USER_ID_STORAGE_KEY
-  ]);
-  const { currentUser, currentUserId } = getStoredCurrentUserDisplay(authState);
-  const isLoggedIn = Boolean(currentUser && currentUserId);
+  const stored = await chrome.storage.local.get([CURRENT_USER_STORAGE_KEY, CURRENT_USER_ID_STORAGE_KEY]);
+  const currentUser = String(stored[CURRENT_USER_STORAGE_KEY] ?? "").trim();
+  const currentUserId = String(stored[CURRENT_USER_ID_STORAGE_KEY] ?? "").trim();
+  state.currentUser = currentUser;
 
+  const isLoggedIn = Boolean(currentUser && currentUserId);
   currentUserBadges.forEach((badge) => {
-    badge.textContent = isLoggedIn ? currentUser : "";
+    badge.textContent = currentUser;
     badge.hidden = !isLoggedIn;
     badge.title = currentUserId ? `user id ${currentUserId}` : currentUser;
   });
 
-  loginPageOpenButtons.forEach((button) => {
-    button.classList.toggle("is-authenticated", isLoggedIn);
-    button.title = isLoggedIn ? `signed in as ${currentUser}` : "open login page";
-    button.setAttribute("aria-label", isLoggedIn ? `open login page, signed in as ${currentUser}` : "open login page");
+  loginOpenButton.classList.toggle("is-authenticated", isLoggedIn);
+  loginOpenButton.title = isLoggedIn ? `signed in as ${currentUser}` : "open login page";
+}
+
+// --- models ---------------------------------------------------------------
+
+async function loadModels() {
+  let catalog;
+  try {
+    catalog = await ConverseApi.getModels();
+  } catch (error) {
+    modelSelect.replaceChildren(new Option("backend offline — no models", "", true, true));
+    setStatus(composerStatus, errorText(error), "error");
+    return;
+  }
+
+  const models = Array.isArray(catalog?.models) ? catalog.models : [];
+  modelSelect.replaceChildren();
+  models.forEach((model) => {
+    modelSelect.append(new Option(`${model.id} · ${model.provider}`, model.id));
   });
+
+  const { [SELECTED_MODEL_STORAGE_KEY]: storedModel } = await chrome.storage.local.get(SELECTED_MODEL_STORAGE_KEY);
+  const modelIds = models.map((model) => model.id);
+  modelSelect.value = modelIds.includes(storedModel) ? storedModel : catalog.default;
+  setStatus(composerStatus, "");
 }
 
-function resizeModeSelectsToSelectedOption() {
-  modeSelects.forEach((select) => {
-    const optionTexts = Array.from(select.options).map((option) => option.textContent?.trim() || option.value || "");
-    const longestTextLength = Math.max(select.value.length, ...optionTexts.map((text) => text.length));
-    const widthCh = Math.min(Math.max(longestTextLength + 5, 13), 22);
-    select.style.setProperty("--mode-select-width", `${widthCh}ch`);
-  });
+// --- per-tab state ---------------------------------------------------------
+
+function tabStateKey(tabId) {
+  return `${TAB_STATE_PREFIX}${tabId}`;
 }
 
-async function loadPromptSnippet(path) {
-  if (!path) {
-    return "";
+async function saveTabState() {
+  if (!Number.isInteger(state.tabId) || !chrome.storage?.session) {
+    return;
   }
 
-  const cached = promptFileCache.get(path);
-  if (cached) {
-    return cached;
-  }
-
-  const response = await fetch(chrome.runtime.getURL(path));
-  if (!response.ok) {
-    throw new Error(`Unable to load prompt snippet at ${path}.`);
-  }
-
-  const text = (await response.text()).trim();
-  promptFileCache.set(path, text);
-  return text;
-}
-
-function normalizeResumeRecord(value) {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const text = typeof value.text === "string" ? value.text.trim() : "";
-  if (!text) {
-    return null;
-  }
-
-  return {
-    fileName: typeof value.fileName === "string" && value.fileName.trim()
-      ? value.fileName.trim()
-      : "resume",
-    text
+  const snapshot = {
+    savedAt: Date.now(),
+    context: contextInput.value,
+    view: state.view,
+    suggestion: state.suggestion,
+    generationId: state.generationId,
+    evidence: state.evidence
   };
-}
 
-async function loadSavedResume() {
-  const result = await chrome.storage.local.get(RESUME_STORAGE_KEY);
-  savedResume = normalizeResumeRecord(result?.[RESUME_STORAGE_KEY]);
-}
-
-function ensureSavedResumeLoaded() {
-  if (!savedResumeLoadPromise) {
-    savedResumeLoadPromise = loadSavedResume().catch((error) => {
-      savedResume = null;
-      console.warn("Unable to load saved resume context.", error);
-    });
+  const isEmpty = !snapshot.context.trim() && !snapshot.suggestion && snapshot.view === "composer";
+  if (isEmpty) {
+    await chrome.storage.session.remove(tabStateKey(state.tabId));
+    return;
   }
 
-  return savedResumeLoadPromise;
+  await chrome.storage.session.set({ [tabStateKey(state.tabId)]: snapshot });
 }
 
-function getResumePromptPayload(snapshot) {
-  if (snapshot.modeId !== "cover-letter" || !savedResume?.text) {
+let tabStateSaveTimer = null;
+
+function scheduleTabStateSave() {
+  if (tabStateSaveTimer) {
+    window.clearTimeout(tabStateSaveTimer);
+  }
+
+  tabStateSaveTimer = window.setTimeout(() => {
+    tabStateSaveTimer = null;
+    saveTabState().catch(() => {});
+  }, 250);
+}
+
+async function restoreTabState() {
+  let snapshot = null;
+
+  if (Number.isInteger(state.tabId) && chrome.storage?.session) {
+    const key = tabStateKey(state.tabId);
+    const stored = await chrome.storage.session.get(key);
+    snapshot = stored[key] ?? null;
+
+    if (snapshot && Date.now() - (snapshot.savedAt ?? 0) > TAB_STATE_TTL_MS) {
+      await chrome.storage.session.remove(key);
+      snapshot = null;
+    }
+  }
+
+  contextInput.value = snapshot?.context ?? "";
+  state.suggestion = snapshot?.suggestion ?? "";
+  state.generationId = snapshot?.generationId ?? null;
+  state.evidence = snapshot?.evidence ?? null;
+  state.workbench.parse = null;
+  state.workbench.selections = [];
+  state.workbench.previewVisible = false;
+  resetWorkbenchDisplay();
+
+  const view = ["composer", "results", "workbench"].includes(snapshot?.view) ? snapshot.view : "composer";
+  setView(view === "results" && !state.suggestion ? "composer" : view);
+
+  if (state.view === "results") {
+    renderSuggestion();
+  } else {
+    setResultsState("idle");
+  }
+
+  if (state.view === "workbench") {
+    refreshWorkbenchParse();
+  }
+}
+
+async function pruneExpiredTabStates() {
+  if (!chrome.storage?.session) {
+    return;
+  }
+
+  const everything = await chrome.storage.session.get(null);
+  const now = Date.now();
+  const expiredKeys = Object.entries(everything)
+    .filter(([key, value]) => (
+      key.startsWith(TAB_STATE_PREFIX) && now - (value?.savedAt ?? 0) > TAB_STATE_TTL_MS
+    ))
+    .map(([key]) => key);
+
+  if (expiredKeys.length > 0) {
+    await chrome.storage.session.remove(expiredKeys);
+  }
+}
+
+// --- active-tab targeting ---------------------------------------------------
+
+function isOwnExtensionPage(url) {
+  return typeof url === "string" && url.startsWith(chrome.runtime.getURL(""));
+}
+
+async function findTargetTab() {
+  const [activeTab] = await chrome.tabs.query({ active: true, windowId: state.windowId });
+  if (activeTab && !isOwnExtensionPage(activeTab.url ?? "")) {
+    return activeTab;
+  }
+
+  // In the side panel the active tab is never this page itself; this fallback only
+  // triggers when popup.html runs as a regular tab (e2e harness) — target the most
+  // recently used web tab instead.
+  const activeTabs = await chrome.tabs.query({ active: true });
+  const webTabs = activeTabs.filter((tab) => !isOwnExtensionPage(tab.url ?? ""));
+  webTabs.sort((left, right) => (right.lastAccessed ?? 0) - (left.lastAccessed ?? 0));
+  return webTabs[0] ?? null;
+}
+
+async function adoptActiveTab({ initial = false } = {}) {
+  let tab = null;
+  try {
+    tab = await findTargetTab();
+  } catch (_error) {
+    return;
+  }
+
+  if (!tab || !Number.isInteger(tab.id)) {
+    return;
+  }
+
+  if (!initial && tab.id === state.tabId) {
+    state.tabUrl = tab.url ?? state.tabUrl;
+    renderSourceBadge();
+    return;
+  }
+
+  if (!initial) {
+    await saveTabState().catch(() => {});
+  }
+
+  state.tabId = tab.id;
+  state.tabUrl = tab.url ?? "";
+  state.parseSequence += 1;
+  state.generateSequence += 1;
+  await restoreTabState();
+  renderSourceBadge();
+}
+
+// --- parsing ----------------------------------------------------------------
+
+function detectParserId(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (_error) {
     return null;
   }
 
-  return {
-    file_name: savedResume.fileName,
-    text: savedResume.text
-  };
-}
-
-function buildLengthConstraint(snapshot) {
-  const { length } = snapshot;
-  if (length.value === "auto") {
+  const isLinkedIn = /(^|\.)linkedin\.com$/i.test(parsed.hostname);
+  const isLocalFixture = ["localhost", "127.0.0.1"].includes(parsed.hostname);
+  if (!isLinkedIn && !isLocalFixture) {
     return null;
   }
 
-  const numericValue = Number(length.value);
-  if (!Number.isFinite(numericValue) || numericValue <= 0) {
-    return null;
+  if (parsed.pathname.startsWith("/messaging")) {
+    return MESSAGING_PARSER_ID;
   }
 
-  const lowerBound = Math.max(1, Math.ceil(numericValue * 0.9));
-  const unit = length.unit;
+  if (/^\/in\/[^/]+\/?$/.test(parsed.pathname)) {
+    return PROFILE_PARSER_ID;
+  }
 
-  return [
-    "This block is super important.",
-    `Requested length: ${numericValue} ${unit}.`,
-    `Required target range for each suggestion: ${lowerBound}-${numericValue} ${unit}.`,
-    `Hard maximum for each suggestion: ${numericValue} ${unit}.`,
-    "The requested length applies to each suggestion independently.",
-    "Do not divide the requested length across the batch of suggestions.",
-    "Do not return a short blurb, opener, summary, or compressed note when the requested length clearly calls for a full draft.",
-    "If regenerate_config gives a different length instruction, follow regenerate_config instead."
-  ].join("\n");
+  return null;
 }
 
-function getPromptUserInput(snapshot) {
-  const instructions = snapshot.instructions.trim();
-  const context = snapshot.contextEnabled ? snapshot.context.trim() : "";
-  const length = snapshot.length.value === "auto"
-    ? null
-    : `${snapshot.length.value} ${snapshot.length.unit}`;
-
-  return {
-    mode: snapshot.modeId,
-    language: snapshot.language,
-    tone: snapshot.tones,
-    length,
-    additional_instructions: instructions || null,
-    additional_context: context || null
-  };
-}
-
-function buildRegenerateConfig() {
-  const isEnabled = regenerateConfigurationToggle?.getAttribute("aria-expanded") === "true";
-  if (!isEnabled) {
-    return null;
-  }
-
-  const likedSuggestions = regenerateFormState.selectedSuggestionIndices
-    .map((index) => suggestionOutputs[index]?.value.trim() ?? "")
-    .filter((text) => Boolean(text));
-  const additionalInstructions = regenerateInstructionsInput?.value.trim() ?? "";
-
-  if (likedSuggestions.length === 0 && !additionalInstructions) {
-    return null;
-  }
-
-  return {
-    liked_suggestions: likedSuggestions,
-    additional_instructions: additionalInstructions
-  };
-}
-
-function getPromptParsingResult(parseResult) {
-  if (parseResult?.status !== "success") {
-    throw new Error(parseResult?.error || "Unable to generate a prompt without a successful parser result.");
-  }
-
-  if (typeof parseResult.output === "string") {
-    return parseResult.output.trim();
-  }
-
-  return JSON.stringify(parseResult.output ?? {}, null, 2);
-}
-
-async function buildPrompt(snapshot, parseResult, regenerateConfig = null) {
-  await ensureSavedResumeLoaded();
-
-  const config = getPromptingConfig();
-  const modeConfig = getModeConfig(snapshot.modeId);
-  const parserId = parseResult?.parserId;
-  const parserPromptPath = modeConfig?.promptPath || config.parserPromptPaths?.[parserId];
-  const resumePayload = getResumePromptPayload(snapshot);
-  const lengthConstraint = buildLengthConstraint(snapshot);
-
-  if (!parserPromptPath) {
-    throw new Error(`No prompt snippet is configured for parser "${parserId ?? "unknown"}".`);
-  }
-
-  const [globalPrompt, parserPrompt] = await Promise.all([
-    loadPromptSnippet(config.globalPromptPath),
-    loadPromptSnippet(parserPromptPath)
-  ]);
-
-  const promptSections = [
-    globalPrompt,
-    "",
-    parserPrompt,
-    "",
-    "<user_input>",
-    JSON.stringify(getPromptUserInput(snapshot), null, 2),
-    "</user_input>",
-    "",
-    "<parsing_result>",
-    getPromptParsingResult(parseResult),
-    "</parsing_result>"
-  ];
-
-  if (resumePayload) {
-    promptSections.push(
-      "",
-      "<resume>",
-      JSON.stringify(resumePayload, null, 2),
-      "</resume>"
-    );
-  }
-
-  if (lengthConstraint) {
-    promptSections.push(
-      "",
-      "<length_constraint>",
-      lengthConstraint,
-      "</length_constraint>"
-    );
-  }
-
-  if (regenerateConfig) {
-    promptSections.push(
-      "",
-      "<regenerate_config>",
-      JSON.stringify(regenerateConfig, null, 2),
-      "</regenerate_config>"
-    );
-  }
-
-  return promptSections.join("\n");
-}
-
-function normalizeDebugParseResult(parseResult) {
+function normalizeParseResult(parseResult) {
   if (!parseResult || typeof parseResult !== "object") {
     return {
       status: "failed_to_parse_with_appropriate_methodology",
@@ -519,7 +431,6 @@ function normalizeDebugParseResult(parseResult) {
   }
 
   const normalized = { ...parseResult };
-
   if (typeof normalized.output === "string") {
     try {
       normalized.output = JSON.parse(normalized.output);
@@ -531,755 +442,207 @@ function normalizeDebugParseResult(parseResult) {
   return normalized;
 }
 
-function formatDebugParseResult(parseResult) {
-  return JSON.stringify(normalizeDebugParseResult(parseResult), null, 2);
-}
-
-function getLlmConfig() {
-  const config = globalThis.ConverseLlmConfig;
-  if (!config) {
-    throw new Error("LLM configuration is unavailable.");
+async function parseActiveTab() {
+  if (!Number.isInteger(state.tabId)) {
+    return {
+      status: "failed_to_parse_with_appropriate_methodology",
+      error: "No active tab to parse."
+    };
   }
 
-  return config;
-}
-
-function setLlmStatus(message, tone = "muted") {
-  if (!llmStatusOutput) {
-    return;
+  const parserId = detectParserId(state.tabUrl);
+  if (!parserId) {
+    return {
+      status: "failed_to_find_appropriate_parsing_methodology",
+      url: state.tabUrl
+    };
   }
 
-  llmStatusOutput.textContent = message;
-  llmStatusOutput.classList.toggle("is-success", tone === "success");
-  llmStatusOutput.classList.toggle("is-error", tone === "error");
-}
-
-function setDebugStatus(message, tone = "muted") {
-  if (!debugStatusOutput) {
-    return;
-  }
-
-  debugStatusOutput.textContent = message;
-  debugStatusOutput.classList.toggle("is-success", tone === "success");
-  debugStatusOutput.classList.toggle("is-error", tone === "error");
-}
-
-async function saveProfileJson() {
-  if (!saveProfileJsonButton) {
-    return;
-  }
-
-  saveProfileJsonButton.disabled = true;
-  setDebugStatus("Parsing profile…");
-
-  try {
-    const parseResult = await parseSourceTab();
-    if (parseResult?.status !== "success") {
-      setDebugStatus("Parse did not succeed — open a LinkedIn profile and retry.", "error");
-      return;
-    }
-
-    const output = parseResult.output ?? parseResult;
-    const label = [output?.first_name, output?.last_name].filter(Boolean).join(" ").trim()
-      || parseResult.parserId
-      || "profile";
-
-    const response = await fetch(PARSE_DUMP_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ result: output, parserId: parseResult.parserId, label, source_url: parseResult.url ?? sourceUrl ?? null })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Save failed with HTTP ${response.status}.`);
-    }
-
-    const body = await response.json().catch(() => null);
-    const ingestMessage = body?.status === "duplicate" ? "Already saved (duplicate)." : "Profile saved.";
-    setDebugStatus(ingestMessage, "success");
-  } catch (error) {
-    setDebugStatus(`Could not save. ${normalizeErrorMessage(error instanceof Error ? error.message : String(error))}`, "error");
-  } finally {
-    saveProfileJsonButton.disabled = false;
-  }
-}
-
-function getLlmSettingsFromInputs() {
-  return getLlmConfig().normalizeSettings({
-    provider: llmProviderSelect?.value,
-    baseUrl: llmBaseUrlInput?.value,
-    path: llmPathInput?.value,
-    model: llmModelSelect?.value
+  await chrome.scripting.executeScript({
+    target: { tabId: state.tabId },
+    files: PARSER_FILES
   });
-}
 
-function populateModelOptions() {
-  if (!llmModelSelect) {
-    return;
-  }
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: state.tabId },
+    func: async (parserIdOverride, retryDelayMs, retryTimeoutMs) => {
+      if (!globalThis.ConverseParsing?.parseCurrentPageWithRetry) {
+        return {
+          status: "failed_to_parse_with_appropriate_methodology",
+          error: "Parser runtime is unavailable on the current page."
+        };
+      }
 
-  llmModelSelect.replaceChildren();
-
-  getLlmConfig().MODEL_OPTIONS.forEach((option) => {
-    const element = document.createElement("option");
-    element.value = option.value;
-    element.textContent = option.label;
-    llmModelSelect.append(element);
+      return globalThis.ConverseParsing.parseCurrentPageWithRetry(parserIdOverride, retryDelayMs, retryTimeoutMs);
+    },
+    args: [parserId, PARSE_RETRY_DELAY_MS, PARSE_RETRY_TIMEOUT_MS]
   });
+
+  return normalizeParseResult(result);
 }
 
-function ensureModelOption(value) {
-  if (!llmModelSelect || !value) {
-    return;
+function summarizeParseFailure(parseResult) {
+  if (parseResult?.status === "failed_to_find_appropriate_parsing_methodology") {
+    const label = getSourceSiteLabel(parseResult?.url || state.tabUrl);
+    return label
+      ? `No parser is configured for ${label} pages.`
+      : "No parser is configured for this page.";
   }
 
-  const existingOption = Array.from(llmModelSelect.options).find((option) => option.value === value);
-  if (existingOption) {
-    return;
-  }
-
-  const element = document.createElement("option");
-  element.value = value;
-  element.textContent = `${value} (custom)`;
-  llmModelSelect.append(element);
+  return normalizeErrorMessage(parseResult?.error, "The page structure did not match what the parser expected.");
 }
 
-function applyLlmSettings(settings) {
-  if (llmProviderSelect) {
-    llmProviderSelect.value = settings.provider;
-  }
+// --- generation payload -------------------------------------------------------
 
-  if (llmBaseUrlInput) {
-    llmBaseUrlInput.value = settings.baseUrl;
-  }
-
-  if (llmPathInput) {
-    llmPathInput.value = settings.path;
-  }
-
-  if (llmModelSelect) {
-    ensureModelOption(settings.model);
-    llmModelSelect.value = settings.model;
-  }
-}
-
-function getMessageError(response, fallbackMessage) {
-  if (response?.ok) {
+function normalizeMessageTime(value) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!text) {
     return null;
   }
 
-  return response?.error || fallbackMessage;
-}
+  const compactMatch = text.match(/^(?:sun|mon|tue|wed|thu|fri|sat)(\d{1,2})([a-z]{3})(\d{2}|\d{4})\s+(\d{1,2})(?::(\d{2}))?\s*([ap])m$/i);
+  if (compactMatch) {
+    const monthIndex = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+    }[compactMatch[2].toLowerCase()];
 
-async function sendRuntimeMessage(message) {
-  const response = await chrome.runtime.sendMessage(message);
-  const errorMessage = getMessageError(response, "The background service returned an unexpected error.");
-  if (errorMessage) {
-    throw new Error(errorMessage);
-  }
+    if (monthIndex !== undefined) {
+      const year = Number(compactMatch[3]);
+      const fullYear = year < 100 ? 2000 + year : year;
+      const meridiem = compactMatch[6].toLowerCase();
+      let hour = Number(compactMatch[4]);
+      const minute = Number(compactMatch[5] ?? 0);
 
-  return response;
-}
+      if (hour === 12) {
+        hour = meridiem === "a" ? 0 : 12;
+      } else if (meridiem === "p") {
+        hour += 12;
+      }
 
-async function requestRelayPermission(baseUrl) {
-  const originPattern = getLlmConfig().getOriginPattern(baseUrl);
-  const alreadyGranted = await chrome.permissions.contains({
-    origins: [originPattern]
-  });
-
-  if (alreadyGranted) {
-    return true;
-  }
-
-  return chrome.permissions.request({
-    origins: [originPattern]
-  });
-}
-
-async function loadLlmSettings() {
-  const response = await sendRuntimeMessage({ type: "converse:get-llm-settings" });
-  const settings = getLlmConfig().normalizeSettings(response.settings);
-  applyLlmSettings(settings);
-  setLlmStatus("LLM connection settings loaded.");
-}
-
-async function saveLlmSettings() {
-  const settings = getLlmSettingsFromInputs();
-  setLlmStatus("Requesting permission for the relay URL...");
-
-  const granted = await requestRelayPermission(settings.baseUrl);
-  if (!granted) {
-    throw new Error(`Permission was not granted for ${settings.baseUrl}.`);
-  }
-
-  const response = await sendRuntimeMessage({
-    type: "converse:save-llm-settings",
-    settings
-  });
-
-  applyLlmSettings(response.settings);
-  setLlmStatus(`Saved. Requests will be sent to ${response.settings.baseUrl}.`, "success");
-}
-
-async function requestSuggestions(promptText) {
-  const response = await sendRuntimeMessage({
-    type: "converse:generate-suggestions",
-    request: {
-      promptText,
-      suggestionCount: suggestionOutputs.length
+      return new Date(Date.UTC(fullYear, monthIndex, Number(compactMatch[1]), hour, minute, 0, 0)).toISOString();
     }
-  });
-
-  return response.result;
-}
-
-function updateSingleSelect(groupElement, selectedValue) {
-  groupElement?.querySelectorAll("[data-value]").forEach((button) => {
-    button.classList.toggle("is-selected", button.dataset.value === selectedValue);
-  });
-}
-
-function updateToneSelection() {
-  toneGroup?.querySelectorAll("[data-value]").forEach((button) => {
-    button.classList.toggle("is-selected", formState.tones.includes(button.dataset.value));
-  });
-}
-
-function setPanelExpanded(toggleElement, panelElement, isExpanded) {
-  toggleElement?.setAttribute("aria-expanded", String(isExpanded));
-  if (panelElement) {
-    panelElement.hidden = !isExpanded;
   }
-  scheduleWindowResize();
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? text : parsed.toISOString();
 }
 
-function getFormState() {
+function getMessagingOutput(parseResult) {
+  if (parseResult?.status !== "success" || parseResult?.parserId !== MESSAGING_PARSER_ID) {
+    return null;
+  }
+
+  const output = isPlainObject(parseResult.output) ? parseResult.output : null;
+  return Array.isArray(output?.messages) ? output : null;
+}
+
+function buildGenerationPayload(output) {
+  const recipientName = String(output.name ?? "").trim();
+  if (!recipientName) {
+    throw new Error("The conversation participant name could not be read from the page.");
+  }
+
   return {
-    modeId: formState.modeId,
-    language: formState.language,
-    tones: [...formState.tones],
-    length: {
-      unit: formState.lengthUnit,
-      value: formState.lengthValue === "auto" ? "auto" : Number(formState.lengthValue)
-    },
-    instructions: instructionsInput?.value ?? "",
-    contextEnabled: directionsToggle?.getAttribute("aria-expanded") === "true",
-    context: contextInput?.value ?? ""
+    recipientName,
+    senderName: state.currentUser || undefined,
+    model: modelSelect.value || undefined,
+    additionalContext: contextInput.value.trim() || undefined,
+    source: "linkedin",
+    sourceUrl: state.tabUrl || undefined,
+    messages: output.messages.map((message, index) => ({
+      senderName: String(message.sender ?? "").trim(),
+      body: String(message.message ?? "").trim(),
+      sentTime: normalizeMessageTime(message.datetime),
+      messageOrder: index
+    }))
   };
 }
 
-function updateRegenerateSuggestionSelection() {
-  regenerateSuggestionButtons.forEach((button) => {
-    const index = Number(button.dataset.regenerateSuggestionIndex);
-    button.classList.toggle("is-selected", regenerateFormState.selectedSuggestionIndices.includes(index));
-  });
-}
+// --- generation ---------------------------------------------------------------
 
-function resetRegenerateConfiguration() {
-  regenerateFormState.selectedSuggestionIndices = [];
-  updateRegenerateSuggestionSelection();
-
-  if (regenerateInstructionsInput) {
-    regenerateInstructionsInput.value = "";
-  }
-
-  setPanelExpanded(regenerateConfigurationToggle, regenerateConfigurationPanel, false);
-}
-
-function getActiveRegenerateConfig() {
-  const showingResults = Boolean(resultsView && !resultsView.hidden);
-  return showingResults ? buildRegenerateConfig() : null;
-}
-
-function resizeWindowToContent() {
-  // Chrome owns side panel sizing; textarea autosizing is handled separately.
-}
-
-function scheduleWindowResize() {
-  resizeWindowToContent();
-}
-
-function isLlmModalOpen() {
-  return Boolean(llmModalBackdrop && !llmModalBackdrop.hidden);
-}
-
-function isDebugModalOpen() {
-  return Boolean(debugModalBackdrop && !debugModalBackdrop.hidden);
-}
-
-function buildParseShowcaseUrl() {
-  const params = new URLSearchParams();
-
-  if (sourceUrl) {
-    params.set("sourceUrl", sourceUrl);
-  }
-
-  if (Number.isInteger(sourceTabId)) {
-    params.set("sourceTabId", String(sourceTabId));
-  }
-
-  params.set("modeId", formState.modeId);
-
-  return `${chrome.runtime.getURL("frontend/parse.html")}?${params.toString()}`;
-}
-
-async function openParseShowcaseTab() {
-  await loadSavedSourceContext();
-
-  const url = buildParseShowcaseUrl();
-  const baseUrl = chrome.runtime.getURL("frontend/parse.html");
-  const tabs = await chrome.tabs.query({});
-  const existingTab = tabs.find((tab) => typeof tab.url === "string" && tab.url.startsWith(baseUrl));
-  const tab = Number.isInteger(existingTab?.id)
-    ? await chrome.tabs.update(existingTab.id, { active: true, url })
-    : await chrome.tabs.create({ active: true, url });
-
-  if (typeof tab?.windowId === "number") {
-    await chrome.windows.update(tab.windowId, { focused: true });
-  }
-}
-
-async function openLoginPageTab() {
-  const url = chrome.runtime.getURL("frontend/login.html");
-  const tabs = await chrome.tabs.query({});
-  const existingTab = tabs.find((tab) => typeof tab.url === "string" && tab.url.startsWith(url));
-  const tab = Number.isInteger(existingTab?.id)
-    ? await chrome.tabs.update(existingTab.id, { active: true, url })
-    : await chrome.tabs.create({ active: true, url });
-
-  if (typeof tab?.windowId === "number") {
-    await chrome.windows.update(tab.windowId, { focused: true });
-  }
-}
-
-function openLlmModal(triggerButton = null) {
-  if (!llmModalBackdrop) {
-    return;
-  }
-
-  lastLlmModalTrigger = triggerButton instanceof HTMLElement ? triggerButton : document.activeElement;
-  llmModalBackdrop.hidden = false;
-  requestAnimationFrame(() => {
-    llmProviderSelect?.focus();
-  });
-}
-
-function setDebugTab(tabName) {
-  const showingParse = tabName !== "prompt";
-
-  debugParseTab?.classList.toggle("is-selected", showingParse);
-  debugPromptTab?.classList.toggle("is-selected", !showingParse);
-  debugParseTab?.setAttribute("aria-selected", String(showingParse));
-  debugPromptTab?.setAttribute("aria-selected", String(!showingParse));
-
-  if (debugParsePanel) {
-    debugParsePanel.hidden = !showingParse;
-  }
-
-  if (debugPromptPanel) {
-    debugPromptPanel.hidden = showingParse;
-  }
-}
-
-function setDebugLoadingState() {
-  if (debugParseOutput) {
-    debugParseOutput.value = "Parsing the active page...";
-  }
-
-  if (debugPromptOutput) {
-    debugPromptOutput.value = "Building prompt preview...";
-  }
-
-  setDebugStatus("Inspecting the active tab...");
-  updateSuggestionActionStates();
-}
-
-async function refreshDebugModalContent() {
-  const currentSequence = ++debugLoadSequence;
-  const snapshot = getFormState();
-
-  setDebugLoadingState();
+async function runGeneration() {
+  const sequence = ++state.generateSequence;
+  setView("results");
+  setResultsState("loading");
 
   let parseResult;
   try {
-    parseResult = await parseSourceTab(snapshot.modeId);
+    parseResult = await parseActiveTab();
   } catch (error) {
-    if (currentSequence !== debugLoadSequence) {
+    if (sequence !== state.generateSequence) {
       return;
     }
 
-    const message = normalizeErrorMessage(error instanceof Error ? error.message : String(error));
-
-    if (debugParseOutput) {
-      debugParseOutput.value = JSON.stringify({
-        status: "failed_to_parse_with_appropriate_methodology",
-        error: message
-      }, null, 2);
-    }
-
-    if (debugPromptOutput) {
-      debugPromptOutput.value = `Prompt unavailable.\n\n${message}`;
-    }
-
-    setDebugStatus("Unable to inspect the active tab.", "error");
-    updateSuggestionActionStates();
+    renderGenerationError("failed to parse the page", errorText(error));
     return;
   }
 
-  if (currentSequence !== debugLoadSequence) {
+  if (sequence !== state.generateSequence) {
     return;
   }
 
-  if (debugParseOutput) {
-    debugParseOutput.value = formatDebugParseResult(parseResult);
-  }
-
-  if (parseResult?.status !== "success") {
-    if (debugPromptOutput) {
-      debugPromptOutput.value = `Prompt unavailable because parsing did not succeed.\n\n${normalizeErrorMessage(parseResult?.error || summarizeParserUrl(parseResult?.url || sourceUrl))}`;
-    }
-
-    setDebugStatus("Parse result loaded, but prompt generation is unavailable.", "error");
-    updateSuggestionActionStates();
+  const output = getMessagingOutput(parseResult);
+  if (!output) {
+    renderGenerationError("failed to read the conversation", summarizeParseFailure(parseResult));
     return;
   }
 
+  let payload;
   try {
-    const promptText = await buildPrompt(snapshot, parseResult, getActiveRegenerateConfig());
-    if (currentSequence !== debugLoadSequence) {
-      return;
-    }
-
-    if (debugPromptOutput) {
-      debugPromptOutput.value = promptText;
-    }
-
-    setDebugStatus("Live parse result and prompt preview loaded.", "success");
-    updateSuggestionActionStates();
+    payload = buildGenerationPayload(output);
   } catch (error) {
-    if (currentSequence !== debugLoadSequence) {
-      return;
-    }
-
-    if (debugPromptOutput) {
-      debugPromptOutput.value = `Unable to build prompt.\n\n${normalizeErrorMessage(error instanceof Error ? error.message : String(error))}`;
-    }
-
-    setDebugStatus("Parse result loaded, but prompt preview failed to build.", "error");
-    updateSuggestionActionStates();
-  }
-}
-
-function openDebugModal(triggerButton = null) {
-  if (!debugModalBackdrop) {
+    renderGenerationError("failed to read the conversation", errorText(error));
     return;
   }
 
-  lastDebugModalTrigger = triggerButton instanceof HTMLElement ? triggerButton : document.activeElement;
-  setDebugTab("parse");
-  debugModalBackdrop.hidden = false;
-  setDebugLoadingState();
-  refreshDebugModalContent();
-
-  requestAnimationFrame(() => {
-    debugParseTab?.focus();
-  });
-}
-
-function closeLlmModal() {
-  if (!llmModalBackdrop || llmModalBackdrop.hidden) {
-    return;
-  }
-
-  llmModalBackdrop.hidden = true;
-
-  if (lastLlmModalTrigger instanceof HTMLElement) {
-    lastLlmModalTrigger.focus();
-  }
-}
-
-function closeDebugModal() {
-  if (!debugModalBackdrop || debugModalBackdrop.hidden) {
-    return;
-  }
-
-  debugModalBackdrop.hidden = true;
-  debugLoadSequence += 1;
-
-  if (lastDebugModalTrigger instanceof HTMLElement) {
-    lastDebugModalTrigger.focus();
-  }
-}
-
-function setActiveView(activeView) {
-  const showingComposer = activeView === "composer";
-  const showingResults = activeView === "results";
-
-  composerView.hidden = !showingComposer;
-  resultsView.hidden = !showingResults;
-  composerView.classList.toggle("view-active", showingComposer);
-  resultsView.classList.toggle("view-active", showingResults);
-  scheduleWindowResize();
-}
-
-function setResultsState(state) {
-  if (generationLoader) {
-    generationLoader.hidden = state !== "loading";
-  }
-
-  if (generationErrorBanner) {
-    generationErrorBanner.hidden = state !== "error";
-  }
-
-  if (suggestionsPanel) {
-    suggestionsPanel.hidden = state !== "suggestions";
-  }
-
-  scheduleWindowResize();
-}
-
-function resetSuggestionOutputs() {
-  suggestionOutputs.forEach((output) => {
-    output.value = "";
-  });
-}
-
-function resetSuggestionActionFeedback() {
-  copyButtons.forEach((button) => {
-    button.classList.remove("is-copied");
-  });
-
-  pickButtons.forEach((button) => {
-    resetPickButtonState(button);
-  });
-}
-
-function getSuggestionHeightBounds(output) {
-  const computedStyle = window.getComputedStyle(output);
-  const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
-  const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
-  const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
-  const borderTop = Number.parseFloat(computedStyle.borderTopWidth) || 0;
-  const borderBottom = Number.parseFloat(computedStyle.borderBottomWidth) || 0;
-  const verticalChrome = paddingTop + paddingBottom + borderTop + borderBottom;
-
-  return {
-    minHeight: lineHeight * 2 + verticalChrome,
-    maxHeight: lineHeight * 5 + verticalChrome
-  };
-}
-
-function resizeSuggestionOutput(output) {
-  if (!(output instanceof HTMLTextAreaElement)) {
-    return;
-  }
-
-  const { minHeight, maxHeight } = getSuggestionHeightBounds(output);
-  output.style.height = `${minHeight}px`;
-  output.style.overflowY = "hidden";
-
-  const targetHeight = Math.min(Math.max(output.scrollHeight, minHeight), maxHeight);
-  output.style.height = `${targetHeight}px`;
-  output.style.overflowY = output.scrollHeight > maxHeight ? "auto" : "hidden";
-}
-
-function resizeSuggestionOutputs() {
-  suggestionOutputs.forEach((output) => {
-    resizeSuggestionOutput(output);
-  });
-}
-
-function renderLoadingState() {
-  resetSuggestionActionFeedback();
-  resetSuggestionOutputs();
-  setResultsState("loading");
-  updateSuggestionActionStates();
-}
-
-function renderSuggestions(suggestions, { preserveRegenerateConfiguration = false } = {}) {
-  resetSuggestionActionFeedback();
-  suggestionOutputs.forEach((output, index) => {
-    output.value = suggestions[index] ?? "";
-  });
-  if (!preserveRegenerateConfiguration) {
-    resetRegenerateConfiguration();
-  }
-  setResultsState("suggestions");
-  window.requestAnimationFrame(() => {
-    resizeSuggestionOutputs();
-    scheduleWindowResize();
-    updateSuggestionActionStates();
-  });
-}
-
-function normalizeErrorMessage(value, fallback = "Something went wrong.") {
-  if (typeof value !== "string") {
-    return fallback;
-  }
-
-  const normalized = value.replace(/\s+/g, " ").trim();
-  return normalized || fallback;
-}
-
-function stripKnownErrorPrefix(message, prefixes) {
-  for (const prefix of prefixes) {
-    if (message.startsWith(prefix)) {
-      return message.slice(prefix.length).trim();
-    }
-  }
-
-  return message;
-}
-
-function summarizeParserUrl(url) {
-  if (formState.modeId !== "auto") {
-    return "The selected mode could not parse enough useful content from this page.";
-  }
-
-  if (!url) {
-    return "No parser is configured for this page.";
-  }
-
+  let generation;
   try {
-    const parsed = new URL(url);
-    return `No parser is configured for ${parsed.hostname}${parsed.pathname}.`;
+    generation = await ConverseApi.generateFollowup(payload);
   } catch (error) {
-    return `No parser is configured for ${url}.`;
+    if (sequence !== state.generateSequence) {
+      return;
+    }
+
+    renderGenerationError("generation failed", errorText(error));
+    return;
   }
+
+  if (sequence !== state.generateSequence) {
+    return;
+  }
+
+  state.suggestion = String(generation?.suggestion ?? "").trim();
+  state.generationId = generation?.generationId ?? null;
+  state.evidence = generation?.evidence ?? null;
+  renderSuggestion();
+  scheduleTabStateSave();
 }
 
-function createGenerationIssue(title, detail) {
-  return {
-    title,
-    detail: normalizeErrorMessage(detail)
-  };
-}
+async function injectSuggestionIntoActiveTab(text) {
+  await chrome.scripting.executeScript({
+    target: { tabId: state.tabId },
+    files: [SUGGESTION_INJECTION_FILE]
+  });
 
-function summarizeDomParseReason(message) {
-  if (/job description text/i.test(message) || /job posting/i.test(message)) {
-    return "The job page did not expose enough readable description content.";
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: state.tabId },
+    func: (suggestionText) => {
+      if (!globalThis.ConverseSuggestionInjection?.injectSuggestion) {
+        return {
+          ok: false,
+          error: "Suggestion injector is unavailable on the current page."
+        };
+      }
+
+      return globalThis.ConverseSuggestionInjection.injectSuggestion(suggestionText);
+    },
+    args: [text]
+  });
+
+  if (!result?.ok) {
+    throw new Error(result?.error || "Unable to inject the suggestion into the page.");
   }
-
-  if (/message list was not found/i.test(message)) {
-    return "The conversation thread was not visible on the page.";
-  }
-
-  if (/participant name/i.test(message) || /conversation participant/i.test(message)) {
-    return "The conversation header was missing from the page.";
-  }
-
-  if (/no .*messages were extracted/i.test(message)) {
-    return "No messages could be read from the current thread.";
-  }
-
-  if (/parser runtime is unavailable/i.test(message)) {
-    return "The page parser could not start on this tab.";
-  }
-
-  return stripKnownErrorPrefix(message, ["LinkedIn messaging "]);
-}
-
-function classifyParseFailure(parseResult) {
-  if (parseResult?.status === "failed_to_find_appropriate_parsing_methodology") {
-    return createGenerationIssue(
-      "failed to find parser for URL",
-      summarizeParserUrl(parseResult?.url || sourceUrl)
-    );
-  }
-
-  return createGenerationIssue(
-    "failed to parse the DOM",
-    summarizeDomParseReason(
-      normalizeErrorMessage(parseResult?.error, "The page structure did not match what the parser expected.")
-    )
-  );
-}
-
-function classifyBuildPromptFailure(error) {
-  const message = normalizeErrorMessage(error instanceof Error ? error.message : String(error));
-
-  if (/unable to load prompt snippet/i.test(message)) {
-    return createGenerationIssue(
-      "failed to build prompt",
-      "A prompt template file could not be loaded."
-    );
-  }
-
-  if (/prompt configuration is unavailable/i.test(message)) {
-    return createGenerationIssue(
-      "failed to build prompt",
-      "Prompt configuration is missing from the extension."
-    );
-  }
-
-  return createGenerationIssue(
-    "failed to build prompt",
-    stripKnownErrorPrefix(message, [
-      "No prompt snippet is configured for parser ",
-      "Prompt configuration is unavailable.",
-      "Unable to generate a prompt without a successful parser result."
-    ])
-  );
-}
-
-function classifySuggestionFailure(error) {
-  const message = normalizeErrorMessage(error instanceof Error ? error.message : String(error));
-
-  if (/permission to contact/i.test(message)) {
-    return createGenerationIssue(
-      "failed to reach relay",
-      "The configured relay URL has not been approved yet in the extension."
-    );
-  }
-
-  if (/relay request failed:/i.test(message) || /failed to fetch/i.test(message)) {
-    return createGenerationIssue(
-      "failed to reach relay",
-      stripKnownErrorPrefix(message, ["Relay request failed:"])
-    );
-  }
-
-  if (/llm api timeout:/i.test(message) || /\b504\b/.test(message) || /\btimed out\b/i.test(message) || /\btimeout\b/i.test(message)) {
-    return createGenerationIssue(
-      "failed to hear back from LLM API",
-      stripKnownErrorPrefix(message, ["LLM API timeout:", "LLM request failed:"])
-    );
-  }
-
-  if (/llm api request failed:/i.test(message) || /\b502\b/.test(message) || /\b503\b/.test(message) || /bad gateway/i.test(message) || /service unavailable/i.test(message)) {
-    return createGenerationIssue(
-      "failed to reach LLM API",
-      stripKnownErrorPrefix(message, ["LLM API request failed:", "LLM request failed:"])
-    );
-  }
-
-  if (/provider returned an empty response|not valid json|did not include assistant text|did not include the expected suggestions array/i.test(message)) {
-    return createGenerationIssue(
-      "failed to hear back from LLM API",
-      "The model replied in an unexpected format."
-    );
-  }
-
-  return createGenerationIssue(
-    "failed to hear back from LLM API",
-    stripKnownErrorPrefix(message, ["LLM request failed:"])
-  );
-}
-
-function renderGenerationError(issue) {
-  resetSuggestionActionFeedback();
-  resetSuggestionOutputs();
-
-  if (generationErrorTitle) {
-    generationErrorTitle.textContent = issue.title;
-  }
-
-  if (generationErrorDetail) {
-    generationErrorDetail.textContent = issue.detail;
-  }
-
-  setResultsState("error");
-  updateSuggestionActionStates();
 }
 
 async function copyText(text) {
@@ -1296,434 +659,543 @@ async function copyText(text) {
   temporaryInput.remove();
 }
 
-function resetCopyButtonState(button) {
-  button.classList.remove("is-copied");
+function flashButtonLabel(button, label, revertLabel) {
+  button.textContent = label;
+  window.setTimeout(() => {
+    button.textContent = revertLabel;
+  }, 1200);
 }
 
-function isUsableSuggestionText(text) {
-  return Boolean(text && text.trim());
+// --- workbench ------------------------------------------------------------------
+
+function resetWorkbenchDisplay() {
+  messageList.replaceChildren();
+  parseJson.hidden = true;
+  parseJson.textContent = "";
+  previewPanel.hidden = true;
+  promptPreviewOutput.textContent = "";
+  previewToggleButton.classList.remove("is-selected");
+  saveProfileButton.disabled = true;
+  saveExampleButton.disabled = true;
+  previewToggleButton.disabled = true;
+  setStatus(workbenchStatus, "ready");
 }
 
-function modeSupportsPicking(modeId = formState.modeId) {
-  return modeId === "auto";
+function getDefaultCategory(message, index) {
+  return index === 0 && isSelfSender(message?.sender) ? "intro" : "message";
 }
 
-function updateSuggestionActionStates() {
-  const suggestionsVisible = Boolean(suggestionsPanel && !suggestionsPanel.hidden);
-  const picksEnabled = modeSupportsPicking();
-
-  pickButtons.forEach((button) => {
-    const targetId = button.dataset.pickTarget;
-    const target = targetId ? document.getElementById(targetId) : null;
-    button.disabled = !picksEnabled || !suggestionsVisible || !isUsableSuggestionText(target?.value ?? "");
-  });
-
-  copyButtons.forEach((button) => {
-    const targetId = button.dataset.copyTarget;
-    const target = targetId ? document.getElementById(targetId) : null;
-    const isSuggestionCopy = suggestionOutputIds.has(targetId);
-    button.disabled = isSuggestionCopy
-      ? !suggestionsVisible || !isUsableSuggestionText(target?.value ?? "")
-      : !isUsableSuggestionText(target?.value ?? "");
-  });
-
-  regenerateSuggestionButtons.forEach((button) => {
-    const index = Number(button.dataset.regenerateSuggestionIndex);
-    const target = suggestionOutputs[index];
-    button.disabled = !suggestionsVisible || !isUsableSuggestionText(target?.value ?? "");
-  });
+function isMessageIncluded(selection) {
+  return selection?.included !== false;
 }
 
-function resetPickButtonState(button) {
-  button.classList.remove("is-picked");
-  button.textContent = "pick";
-}
-
-async function injectSuggestionIntoSourceTab(text) {
-  if (!Number.isInteger(sourceTabId)) {
-    throw new Error("Source tab id is unavailable.");
+function getIncludedCount() {
+  const output = getMessagingOutput(state.workbench.parse);
+  if (!output) {
+    return 0;
   }
 
-  await chrome.scripting.executeScript({
-    target: { tabId: sourceTabId },
-    files: [SUGGESTION_INJECTION_FILE]
-  });
-
-  const [{ result }] = await chrome.scripting.executeScript({
-    target: { tabId: sourceTabId },
-    func: (suggestionText) => {
-      if (!globalThis.ConverseSuggestionInjection?.injectSuggestion) {
-        return {
-          ok: false,
-          error: "Suggestion injector is unavailable on the current page."
-        };
-      }
-
-      return globalThis.ConverseSuggestionInjection.injectSuggestion(suggestionText);
-    },
-    args: [text]
-  });
-
-  if (!result?.ok) {
-    throw new Error(result?.error || "Unable to inject the suggestion into the source page.");
-  }
-
-  const sourceTab = await chrome.tabs.update(sourceTabId, { active: true });
-  if (typeof sourceTab?.windowId === "number") {
-    await chrome.windows.update(sourceTab.windowId, { focused: true });
-  }
+  return output.messages.filter((_message, index) => isMessageIncluded(state.workbench.selections[index])).length;
 }
 
-function requestSidePanelClose() {
-  try {
-    chrome.runtime.sendMessage({
-      type: "converse:close-side-panel",
-      sourceTabId
-    }).catch(() => {
-      // Closing the panel is best-effort; successful pick/copy behavior should remain intact.
+function updateWorkbenchActions() {
+  const parse = state.workbench.parse;
+  const isMessaging = Boolean(getMessagingOutput(parse));
+  const isProfile = parse?.status === "success" && parse?.parserId === PROFILE_PARSER_ID;
+
+  saveProfileButton.disabled = !isProfile;
+  saveExampleButton.disabled = !isMessaging || getIncludedCount() === 0;
+  previewToggleButton.disabled = !isMessaging;
+}
+
+function createRatingControl(message, index, selection) {
+  const labels = isSelfSender(message.sender) ? SELF_RATING_LABELS : OTHER_RATING_LABELS;
+
+  const control = document.createElement("div");
+  control.className = "message-control";
+
+  const caption = document.createElement("span");
+  caption.className = "control-caption";
+
+  const stars = document.createElement("div");
+  stars.className = "star-row";
+  stars.setAttribute("role", "group");
+  stars.setAttribute("aria-label", `rating for message ${index + 1}`);
+
+  const starButtons = [];
+  for (let rating = 1; rating <= 5; rating += 1) {
+    const star = document.createElement("button");
+    star.type = "button";
+    star.className = "star-button";
+    star.textContent = "★";
+    star.title = labels[rating - 1];
+    star.addEventListener("click", () => {
+      selection.rating = rating;
+      render();
     });
-  } catch (_error) {
-    // Closing the panel is best-effort; successful pick/copy behavior should remain intact.
+    starButtons.push(star);
+    stars.append(star);
   }
+
+  function render() {
+    caption.textContent = labels[selection.rating - 1] ?? "neutral";
+    starButtons.forEach((star, starIndex) => {
+      star.classList.toggle("is-selected", starIndex < selection.rating);
+    });
+  }
+
+  render();
+  control.append(stars, caption);
+  return control;
 }
 
-async function runGeneration(regenerateConfig = null, { preserveRegenerateConfiguration = false } = {}) {
-  const snapshot = getFormState();
-  setActiveView("results");
-  renderLoadingState();
+function createCategoryControl(index, selection) {
+  const control = document.createElement("div");
+  control.className = "message-control category-row";
+  control.setAttribute("role", "group");
+  control.setAttribute("aria-label", `category for message ${index + 1}`);
+
+  const buttons = ["intro", "message"].map((category) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip-button";
+    button.textContent = category;
+    button.addEventListener("click", () => {
+      selection.category = category;
+      render();
+    });
+    control.append(button);
+    return button;
+  });
+
+  function render() {
+    buttons.forEach((button) => {
+      button.classList.toggle("is-selected", button.textContent === selection.category);
+    });
+  }
+
+  render();
+  return control;
+}
+
+function createIncludeControl(row, index, selection) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "chip-button include-toggle";
+
+  function render() {
+    const included = isMessageIncluded(selection);
+    button.textContent = included ? "included" : "ignored";
+    button.classList.toggle("is-selected", included);
+    row.classList.toggle("is-ignored", !included);
+    button.setAttribute("aria-pressed", String(included));
+    button.setAttribute("aria-label", `message ${index + 1} ${included ? "will" : "will not"} be saved`);
+  }
+
+  button.addEventListener("click", () => {
+    selection.included = !isMessageIncluded(selection);
+    render();
+    updateWorkbenchActions();
+  });
+
+  render();
+  return button;
+}
+
+function renderMessageItem(message, index) {
+  const record = isPlainObject(message) ? message : { message: String(message ?? "") };
+  const selection = {
+    included: true,
+    category: getDefaultCategory(record, index),
+    rating: 3
+  };
+  state.workbench.selections[index] = selection;
+
+  const row = document.createElement("article");
+  row.className = "message-item";
+  row.classList.toggle("is-self", isSelfSender(record.sender));
+
+  const meta = document.createElement("div");
+  meta.className = "message-meta";
+  const sender = document.createElement("span");
+  sender.className = "message-sender";
+  sender.textContent = record.sender ?? "unknown sender";
+  meta.append(sender);
+
+  if (record.datetime) {
+    const time = document.createElement("span");
+    time.className = "message-time";
+    time.textContent = record.datetime;
+    meta.append(time);
+  }
+
+  const body = document.createElement("pre");
+  body.className = "message-body";
+  body.textContent = String(record.message ?? "").trim() || "(empty)";
+
+  const controls = document.createElement("div");
+  controls.className = "message-controls";
+  controls.append(
+    createIncludeControl(row, index, selection),
+    createCategoryControl(index, selection),
+    createRatingControl(record, index, selection)
+  );
+
+  row.append(meta, body, controls);
+  return row;
+}
+
+function renderWorkbenchParse() {
+  const parse = state.workbench.parse;
+  messageList.replaceChildren();
+  parseJson.hidden = true;
+  parseJson.textContent = "";
+  state.workbench.selections = [];
+
+  if (!parse) {
+    updateWorkbenchActions();
+    return;
+  }
+
+  const output = getMessagingOutput(parse);
+  if (output) {
+    const header = document.createElement("p");
+    header.className = "message-list-header";
+    header.textContent = `${output.name ?? "unknown"} — ${output.messages.length} messages`;
+    messageList.append(header);
+    output.messages.forEach((message, index) => {
+      messageList.append(renderMessageItem(message, index));
+    });
+    setStatus(workbenchStatus, "parsed conversation", "success");
+  } else if (parse.status === "success") {
+    parseJson.hidden = false;
+    parseJson.textContent = JSON.stringify(parse, null, 2);
+    setStatus(workbenchStatus, `parsed ${parse.parserId ?? "page"}`, "success");
+  } else {
+    parseJson.hidden = false;
+    parseJson.textContent = JSON.stringify(parse, null, 2);
+    setStatus(workbenchStatus, summarizeParseFailure(parse), "error");
+  }
+
+  updateWorkbenchActions();
+}
+
+async function refreshWorkbenchParse() {
+  const sequence = ++state.parseSequence;
+  setStatus(workbenchStatus, "parsing the active tab…");
+  hidePromptPreview();
 
   let parseResult;
   try {
-    parseResult = await parseSourceTab(snapshot.modeId);
+    parseResult = await parseActiveTab();
   } catch (error) {
-    renderGenerationError(createGenerationIssue(
-      "failed to parse the DOM",
-      normalizeErrorMessage(error instanceof Error ? error.message : String(error))
-    ));
+    parseResult = {
+      status: "failed_to_parse_with_appropriate_methodology",
+      error: errorText(error)
+    };
+  }
+
+  if (sequence !== state.parseSequence) {
     return;
   }
 
-  if (parseResult?.status !== "success") {
-    renderGenerationError(classifyParseFailure(parseResult));
-    return;
+  state.workbench.parse = parseResult;
+  renderWorkbenchParse();
+}
+
+function buildEvalExamplePayload() {
+  const output = getMessagingOutput(state.workbench.parse);
+  if (!output) {
+    throw new Error("No parsed conversation is available to save.");
   }
 
-  let promptText;
+  if (!state.currentUser) {
+    throw new Error("Sign in before saving an eval example.");
+  }
+
+  const messages = output.messages.flatMap((message, index) => {
+    const selection = state.workbench.selections[index] ?? {};
+    if (!isMessageIncluded(selection)) {
+      return [];
+    }
+
+    return [{
+      message_order: index,
+      sender_name: String(message.sender ?? "").trim(),
+      sentTime: normalizeMessageTime(message.datetime),
+      body: String(message.message ?? "").trim(),
+      category: selection.category ?? getDefaultCategory(message, index),
+      rating: Number(selection.rating ?? 3)
+    }];
+  });
+
+  if (messages.length === 0) {
+    throw new Error("Include at least one message before saving.");
+  }
+
+  const recipientName = inferRecipientName(output);
+
+  return {
+    saved_at: new Date().toISOString(),
+    user_name: state.currentUser,
+    recipient_name: recipientName,
+    source: "linkedin",
+    messages
+  };
+}
+
+function inferRecipientName(output) {
+  const userNameKey = normalizeName(state.currentUser);
+  const senderCounts = new Map();
+
+  output.messages.forEach((message, index) => {
+    const senderName = String(message?.sender ?? "").trim();
+    const senderKey = normalizeName(senderName);
+    if (!senderName || !senderKey || senderKey === userNameKey) {
+      return;
+    }
+
+    const entry = senderCounts.get(senderKey) ?? { count: 0, firstIndex: index, name: senderName };
+    entry.count += 1;
+    senderCounts.set(senderKey, entry);
+  });
+
+  const [bestSender] = Array.from(senderCounts.values()).sort((left, right) => (
+    right.count !== left.count ? right.count - left.count : left.firstIndex - right.firstIndex
+  ));
+
+  if (bestSender) {
+    return bestSender.name;
+  }
+
+  const participantName = String(output.name ?? "").trim();
+  if (participantName && normalizeName(participantName) !== userNameKey) {
+    return participantName;
+  }
+
+  throw new Error("Unable to infer the recipient name from this conversation.");
+}
+
+async function saveEvalExample() {
+  let payload;
   try {
-    promptText = await buildPrompt(snapshot, parseResult, regenerateConfig);
+    payload = buildEvalExamplePayload();
   } catch (error) {
-    renderGenerationError(classifyBuildPromptFailure(error));
+    setStatus(workbenchStatus, errorText(error), "error");
     return;
   }
 
+  saveExampleButton.disabled = true;
+  setStatus(workbenchStatus, "saving eval example…");
+
   try {
-    const generationResult = await requestSuggestions(promptText);
-    renderSuggestions(generationResult.suggestions, { preserveRegenerateConfiguration });
+    await ConverseApi.saveEvalExample(payload);
+    setStatus(workbenchStatus, `saved ${payload.messages.length} rated messages as an eval example`, "success");
   } catch (error) {
-    renderGenerationError(classifySuggestionFailure(error));
+    setStatus(workbenchStatus, `save failed — ${errorText(error)}`, "error");
+  } finally {
+    updateWorkbenchActions();
   }
 }
 
-languageGroup?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-group='language']");
-  if (!button) {
+async function saveParsedProfile() {
+  const parse = state.workbench.parse;
+  if (parse?.status !== "success" || parse?.parserId !== PROFILE_PARSER_ID) {
+    setStatus(workbenchStatus, "open a LinkedIn profile and re-parse first", "error");
     return;
   }
 
-  formState.language = button.dataset.value;
-  updateSingleSelect(languageGroup, formState.language);
-});
+  const output = parse.output ?? parse;
+  const label = [output?.first_name, output?.last_name].filter(Boolean).join(" ").trim() || parse.parserId;
 
-modeSelects.forEach((select) => {
-  select.addEventListener("change", (event) => {
-    const nextValue = event.target.value;
-    const mode = getModeConfig(nextValue);
-    formState.modeId = mode?.id ?? "auto";
-    syncModeSelects();
-    updateSuggestionActionStates();
-  });
-});
-
-lengthUnitGroup?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-group='length-unit']");
-  if (!button) {
-    return;
-  }
-
-  formState.lengthUnit = button.dataset.value;
-  updateSingleSelect(lengthUnitGroup, formState.lengthUnit);
-});
-
-lengthValueGroup?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-group='length-value']");
-  if (!button) {
-    return;
-  }
-
-  formState.lengthValue = button.dataset.value;
-  updateSingleSelect(lengthValueGroup, formState.lengthValue);
-});
-
-toneGroup?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-group='tone']");
-  if (!button) {
-    return;
-  }
-
-  const value = button.dataset.value;
-  const includesValue = formState.tones.includes(value);
-
-  if (value === "auto") {
-    formState.tones = includesValue ? [] : ["auto"];
-    updateToneSelection();
-    return;
-  }
-
-  const tonesWithoutAuto = formState.tones.filter((tone) => tone !== "auto");
-  formState.tones = includesValue
-    ? tonesWithoutAuto.filter((tone) => tone !== value)
-    : [...tonesWithoutAuto, value];
-
-  updateToneSelection();
-});
-
-toneReset?.addEventListener("click", () => {
-  formState.tones = [];
-  updateToneSelection();
-});
-
-configurationToggle?.addEventListener("click", () => {
-  const isExpanded = configurationToggle.getAttribute("aria-expanded") === "true";
-  setPanelExpanded(configurationToggle, configurationPanel, !isExpanded);
-});
-
-directionsToggle?.addEventListener("click", () => {
-  const isExpanded = directionsToggle.getAttribute("aria-expanded") === "true";
-  setPanelExpanded(directionsToggle, directionsPanel, !isExpanded);
-});
-
-regenerateConfigurationToggle?.addEventListener("click", () => {
-  const isExpanded = regenerateConfigurationToggle.getAttribute("aria-expanded") === "true";
-  setPanelExpanded(regenerateConfigurationToggle, regenerateConfigurationPanel, !isExpanded);
-});
-
-regenerateSuggestionGroup?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-regenerate-suggestion-index]");
-  if (!button || button.disabled) {
-    return;
-  }
-
-  const index = Number(button.dataset.regenerateSuggestionIndex);
-  regenerateFormState.selectedSuggestionIndices = regenerateFormState.selectedSuggestionIndices.includes(index)
-    ? regenerateFormState.selectedSuggestionIndices.filter((value) => value !== index)
-    : [...regenerateFormState.selectedSuggestionIndices, index].sort((left, right) => left - right);
-  updateRegenerateSuggestionSelection();
-});
-
-generateButton?.addEventListener("click", () => {
-  runGeneration(null);
-});
-
-retryButton?.addEventListener("click", () => {
-  resetRegenerateConfiguration();
-  setActiveView("composer");
-  instructionsInput?.focus();
-});
-
-regenerateButton?.addEventListener("click", () => {
-  runGeneration(buildRegenerateConfig(), { preserveRegenerateConfiguration: true });
-});
-
-llmSaveButton?.addEventListener("click", async () => {
-  setLlmStatus("Saving connection settings...");
+  saveProfileButton.disabled = true;
+  setStatus(workbenchStatus, "saving profile…");
 
   try {
-    await saveLlmSettings();
+    const response = await ConverseApi.saveParsedProfile({
+      result: output,
+      parserId: parse.parserId,
+      label,
+      sourceUrl: parse.url ?? state.tabUrl ?? null
+    });
+    const message = response?.status === "duplicate" ? "already saved (duplicate)" : `saved profile ${label}`;
+    setStatus(workbenchStatus, message, "success");
   } catch (error) {
-    setLlmStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus(workbenchStatus, `save failed — ${errorText(error)}`, "error");
+  } finally {
+    updateWorkbenchActions();
   }
-});
+}
 
-llmModalOpenButtons.forEach((button) => {
+function hidePromptPreview() {
+  state.workbench.previewVisible = false;
+  previewPanel.hidden = true;
+  previewToggleButton.classList.remove("is-selected");
+}
+
+async function togglePromptPreview() {
+  if (state.workbench.previewVisible) {
+    hidePromptPreview();
+    return;
+  }
+
+  const output = getMessagingOutput(state.workbench.parse);
+  if (!output) {
+    setStatus(workbenchStatus, "parse a conversation first", "error");
+    return;
+  }
+
+  let payload;
+  try {
+    payload = buildGenerationPayload(output);
+  } catch (error) {
+    setStatus(workbenchStatus, errorText(error), "error");
+    return;
+  }
+
+  previewToggleButton.disabled = true;
+  setStatus(workbenchStatus, "building prompt preview…");
+
+  try {
+    const preview = await ConverseApi.previewPrompt(payload);
+    promptPreviewOutput.textContent = preview?.prompt ?? "";
+    state.workbench.previewVisible = true;
+    previewPanel.hidden = false;
+    previewToggleButton.classList.add("is-selected");
+    const ragNote = preview?.ragError ? ` (RAG unavailable: ${normalizeErrorMessage(preview.ragError)})` : "";
+    setStatus(workbenchStatus, `prompt preview ready — ${preview?.promptVersion ?? "?"}${ragNote}`, preview?.ragError ? "error" : "success");
+  } catch (error) {
+    setStatus(workbenchStatus, `preview failed — ${errorText(error)}`, "error");
+  } finally {
+    previewToggleButton.disabled = false;
+    updateWorkbenchActions();
+  }
+}
+
+// --- login page -------------------------------------------------------------
+
+async function openLoginPageTab() {
+  const url = chrome.runtime.getURL("frontend/login.html");
+  const tabs = await chrome.tabs.query({});
+  const existingTab = tabs.find((tab) => typeof tab.url === "string" && tab.url.startsWith(url));
+  const tab = Number.isInteger(existingTab?.id)
+    ? await chrome.tabs.update(existingTab.id, { active: true, url })
+    : await chrome.tabs.create({ active: true, url });
+
+  if (typeof tab?.windowId === "number") {
+    await chrome.windows.update(tab.windowId, { focused: true });
+  }
+}
+
+// --- events -------------------------------------------------------------------
+
+viewButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    openLlmModal(button);
+    openView(button.dataset.viewButton);
   });
 });
 
-parseTabOpenButtons.forEach((button) => {
-  button.addEventListener("click", async () => {
-    try {
-      await openParseShowcaseTab();
-    } catch (error) {
-      setLlmStatus(error instanceof Error ? error.message : String(error), "error");
-    }
+loginOpenButton.addEventListener("click", () => {
+  openLoginPageTab().catch((error) => {
+    setStatus(composerStatus, errorText(error), "error");
   });
 });
 
-loginPageOpenButtons.forEach((button) => {
-  button.addEventListener("click", async () => {
-    try {
-      await openLoginPageTab();
-    } catch (error) {
-      setLlmStatus(error instanceof Error ? error.message : String(error), "error");
-    }
-  });
+modelSelect.addEventListener("change", () => {
+  chrome.storage.local.set({ [SELECTED_MODEL_STORAGE_KEY]: modelSelect.value }).catch(() => {});
 });
 
-debugModalOpenButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    openDebugModal(button);
-  });
+contextInput.addEventListener("input", () => {
+  scheduleTabStateSave();
 });
 
-llmModalCloseButton?.addEventListener("click", () => {
-  closeLlmModal();
+generateButton.addEventListener("click", () => {
+  runGeneration();
 });
 
-debugModalCloseButton?.addEventListener("click", () => {
-  closeDebugModal();
+regenerateButton.addEventListener("click", () => {
+  runGeneration();
 });
 
-llmModalBackdrop?.addEventListener("click", (event) => {
-  if (event.target === llmModalBackdrop) {
-    closeLlmModal();
+backButton.addEventListener("click", () => {
+  setView("composer");
+  scheduleTabStateSave();
+  contextInput.focus();
+});
+
+pickButton.addEventListener("click", async () => {
+  if (!state.suggestion.trim()) {
+    return;
+  }
+
+  try {
+    await injectSuggestionIntoActiveTab(state.suggestion);
+    flashButtonLabel(pickButton, "picked", "pick");
+    window.close();
+  } catch (error) {
+    flashButtonLabel(pickButton, "failed", "pick");
+    renderGenerationError("failed to insert the suggestion", errorText(error));
   }
 });
 
-debugModalBackdrop?.addEventListener("click", (event) => {
-  if (event.target === debugModalBackdrop) {
-    closeDebugModal();
+copySuggestionButton.addEventListener("click", async () => {
+  await copyText(suggestionOutput.value);
+  flashButtonLabel(copySuggestionButton, "copied", "copy");
+});
+
+copyPromptButton.addEventListener("click", async () => {
+  await copyText(promptPreviewOutput.textContent);
+  flashButtonLabel(copyPromptButton, "copied", "copy");
+});
+
+refreshParseButton.addEventListener("click", () => {
+  refreshWorkbenchParse();
+});
+
+saveExampleButton.addEventListener("click", () => {
+  saveEvalExample();
+});
+
+saveProfileButton.addEventListener("click", () => {
+  saveParsedProfile();
+});
+
+previewToggleButton.addEventListener("click", () => {
+  togglePromptPreview();
+});
+
+chrome.tabs.onActivated.addListener(({ windowId }) => {
+  if (windowId === state.windowId) {
+    adoptActiveTab();
   }
 });
 
-llmModal?.addEventListener("click", (event) => {
-  event.stopPropagation();
-});
-
-debugModal?.addEventListener("click", (event) => {
-  event.stopPropagation();
-});
-
-debugParseTab?.addEventListener("click", () => {
-  setDebugTab("parse");
-});
-
-debugPromptTab?.addEventListener("click", () => {
-  setDebugTab("prompt");
-});
-
-saveProfileJsonButton?.addEventListener("click", () => {
-  saveProfileJson();
-});
-
-copyButtons.forEach((button) => {
-  button.addEventListener("click", async () => {
-    const targetId = button.dataset.copyTarget;
-    const target = document.getElementById(targetId);
-    if (!target) {
-      return;
-    }
-
-    await copyText(target.value);
-    button.classList.add("is-copied");
-    window.setTimeout(() => resetCopyButtonState(button), 1200);
-  });
-});
-
-pickButtons.forEach((button) => {
-  button.addEventListener("click", async () => {
-    if (button.disabled) {
-      return;
-    }
-
-    const targetId = button.dataset.pickTarget;
-    const target = targetId ? document.getElementById(targetId) : null;
-    if (!(target instanceof HTMLTextAreaElement) || !isUsableSuggestionText(target.value)) {
-      return;
-    }
-
-    try {
-      await injectSuggestionIntoSourceTab(target.value);
-      button.classList.add("is-picked");
-      button.textContent = "picked";
-      window.setTimeout(() => resetPickButtonState(button), 1200);
-      requestSidePanelClose();
-    } catch (error) {
-      button.classList.remove("is-picked");
-      button.textContent = error instanceof Error ? "failed" : "error";
-      window.setTimeout(() => resetPickButtonState(button), 1600);
-    }
-  });
-});
-
-[closeButton, resultsCloseButton].forEach((button) => {
-  button?.addEventListener("click", () => {
-    resetRegenerateConfiguration();
-    requestSidePanelClose();
-  });
-});
-
-window.addEventListener("load", async () => {
-  await renderSourceSiteBadge();
-  await renderCurrentUserBadge();
-  populateModeOptions();
-  populateModelOptions();
-  updateSingleSelect(languageGroup, formState.language);
-  updateSingleSelect(lengthUnitGroup, formState.lengthUnit);
-  updateSingleSelect(lengthValueGroup, formState.lengthValue);
-  updateToneSelection();
-  setPanelExpanded(configurationToggle, configurationPanel, true);
-  setPanelExpanded(directionsToggle, directionsPanel, false);
-  resetRegenerateConfiguration();
-  resizeSuggestionOutputs();
-  scheduleWindowResize();
-  updateSuggestionActionStates();
-
-  loadLlmSettings().catch((error) => {
-    const config = getLlmConfig();
-    applyLlmSettings(config.DEFAULT_SETTINGS);
-    setLlmStatus(error instanceof Error ? error.message : String(error), "error");
-  });
-
-  ensureSavedResumeLoaded();
-});
-
-window.addEventListener("pagehide", () => {
-  chrome.runtime.sendMessage({
-    type: "converse:side-panel-unloaded",
-    sourceTabId
-  }).catch(() => {
-    // The service worker may already be unavailable while Chrome tears down the panel.
-  });
-});
-
-chrome.tabs?.onActivated?.addListener(() => {
-  renderSourceSiteBadge();
-});
-
-chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
-  if (tabId === sourceTabId && changeInfo.url) {
-    sourceUrl = changeInfo.url;
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (tabId !== state.tabId || !changeInfo.url) {
+    return;
   }
 
-  renderSourceSiteBadge();
+  state.tabUrl = changeInfo.url;
+  renderSourceBadge();
+  updateWorkbenchActions();
 });
 
-chrome.storage?.onChanged?.addListener((changes, areaName) => {
+chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && (changes[CURRENT_USER_STORAGE_KEY] || changes[CURRENT_USER_ID_STORAGE_KEY])) {
     renderCurrentUserBadge();
   }
 });
 
-window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && isDebugModalOpen()) {
-    event.preventDefault();
-    closeDebugModal();
-    return;
-  }
+window.addEventListener("pagehide", () => {
+  saveTabState().catch(() => {});
+});
 
-  if (event.key === "Escape" && isLlmModalOpen()) {
-    event.preventDefault();
-    closeLlmModal();
-  }
+window.addEventListener("load", async () => {
+  const currentWindow = await chrome.windows.getCurrent();
+  state.windowId = currentWindow.id;
+
+  await pruneExpiredTabStates().catch(() => {});
+  await renderCurrentUserBadge();
+  await loadModels();
+  await adoptActiveTab({ initial: true });
 });

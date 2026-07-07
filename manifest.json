@@ -13,13 +13,6 @@
   "host_permissions": [
     "https://linkedin.com/*",
     "https://www.linkedin.com/*",
-    "https://messenger.com/*",
-    "https://www.messenger.com/*",
-    "https://web.whatsapp.com/*",
-    "https://mail.google.com/*"
-  ],
-  "optional_host_permissions": [
-    "https://*/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
