@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .config import settings
 from .loggers import api_logger, get_current_log_file_path
-from .routers import auth, conversations, debug, eval_examples, followups, health, memory, persons
+from .routers import auth, conversations, debug, eval_examples, followups, health, llm, memory, persons
 
 
 @asynccontextmanager
@@ -48,6 +48,7 @@ app.include_router(conversations.router, prefix="/api/conversations", tags=["con
 app.include_router(persons.router, prefix="/api/persons", tags=["persons"])
 app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
 app.include_router(followups.router, prefix="/api/followups", tags=["followups"])
+app.include_router(llm.router, prefix="/api/llm", tags=["llm"])
 app.include_router(eval_examples.router, prefix="/api/eval_examples", tags=["eval_examples"])
 app.include_router(debug.router, prefix="/api/debug", tags=["debug"])
 

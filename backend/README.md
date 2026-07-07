@@ -1,6 +1,6 @@
 # Converse FastAPI backend
 
-This is the regenerated Python API for Converse. It keeps the old route shape and Postgres tables, while leaving `../relay` untouched for the existing OpenAI-compatible relay flow.
+This is the Python API for Converse. The extension talks only to this backend; provider keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) live in its environment — see `docs/llm-setup.md`.
 
 ## Run locally
 
@@ -34,7 +34,11 @@ psql postgresql://postgres:postgres@localhost:5432/convo_maker -f schema.sql
 - `GET /api/persons/{id}/memory`
 - `POST /api/memory/generate`
 - `POST /api/memory/search`
-- `POST /api/followups/generate`
+- `POST /api/followups/generate` — RAG prompt + provider call, persists the generation
+- `POST /api/followups/preview` — the exact generation prompt, no model call
 - `POST /api/followups/{id}/feedback`
+- `GET /api/llm/models` — model menu for the extension + default
+- `POST /api/eval_examples`
+- `POST /api/debug/parse_dump`
 
 `postgres_demo.py` shows a minimal write and read using the same tables.

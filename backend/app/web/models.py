@@ -57,12 +57,21 @@ class EvalExampleCreateRequest(ApiModel):  # completely wrong, it should give a 
     messages: list[EvalExampleMessage] = Field(min_length=1)
 
 
-class FollowupGenerationRequest(ApiModel):
-    person_id: UUID | None = Field(default=None, alias="personId")
-    conversation_id: UUID | None = Field(default=None, alias="conversationId")
-    user_prompt: str | None = Field(default=None, alias="userPrompt")
-    tone: str | None = None
-    target_length: str | None = Field(default=None, alias="targetLength")
+class ThreadMessageInput(ApiModel):
+    sender_name: str = Field(alias="senderName", min_length=1)
+    body: str
+    sent_time: str | None = Field(default=None, alias="sentTime")
+    message_order: int = Field(default=0, alias="messageOrder", ge=0)
+
+
+class FollowupGenerateRequest(ApiModel):
+    recipient_name: str = Field(alias="recipientName", min_length=1)
+    sender_name: str | None = Field(default=None, alias="senderName")
+    model: str | None = None
+    additional_context: str | None = Field(default=None, alias="additionalContext")
+    source: str = "linkedin"
+    source_url: str | None = Field(default=None, alias="sourceUrl")
+    messages: list[ThreadMessageInput] = Field(default_factory=list)
 
 
 class FollowupFeedbackRequest(ApiModel):

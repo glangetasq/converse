@@ -11,6 +11,7 @@ class Settings:
     auto_create_tables: bool
     allowed_origins: list[str]
     local_dev_user_email: str
+    default_model: str
     openai_api_key: str | None
     openai_api_base_url: str
     anthropic_api_key: str | None
@@ -47,6 +48,7 @@ def get_settings() -> Settings:
         auto_create_tables=_env_bool("AUTO_CREATE_TABLES", True),
         allowed_origins=_env_list("ALLOWED_ORIGINS", "http://localhost:3000,chrome-extension://*"),
         local_dev_user_email=os.getenv("LOCAL_DEV_USER_EMAIL", "local-dev@convo-maker.test"),
+        default_model=os.getenv("DEFAULT_MODEL", "claude-haiku-4-5-20251001"),
         openai_api_key=_env_optional("OPENAI_API_KEY"),
         openai_api_base_url=os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com"),
         anthropic_api_key=_env_optional("ANTHROPIC_API_KEY"),
