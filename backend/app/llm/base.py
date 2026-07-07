@@ -18,6 +18,18 @@ from .generation import BatchRequest, Completion, GenConfig
 from .execution import ONLINE, LlmExecutionStrategy
 
 
+def strip_json_code_fence(text: str) -> str:
+    text = text.strip()
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if lines and lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip().startswith("```"):
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
 class ModelError(RuntimeError):
     def __init__(
         self,

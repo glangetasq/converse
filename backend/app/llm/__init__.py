@@ -6,6 +6,7 @@ from .execution import ONLINE, LlmExecutionStrategy
 from .generation import BatchRequest, Completion, GenConfig
 from .openai import OpenAIClient
 from .registry import KNOWN_MODELS, get_client, provider_for
+from .vllm import VLLMClient
 
 __all__ = [
     "BatchRequest",
@@ -18,6 +19,7 @@ __all__ = [
     "ONLINE",
     "OpenAIClient",
     "ProviderClient",
+    "VLLMClient",
     "get_client",
     "provider_for",
 ]

@@ -6,20 +6,8 @@ import urllib.request
 from typing import Any
 
 from ..config import settings
-from .base import ModelError, ProviderClient
+from .base import ModelError, ProviderClient, strip_json_code_fence
 from .generation import BatchRequest, Completion, GenConfig
-
-
-def _strip_json_code_fence(text: str) -> str:
-    text = text.strip()
-    if not text.startswith("```"):
-        return text
-    lines = text.splitlines()
-    if lines and lines[0].strip().startswith("```"):
-        lines = lines[1:]
-    if lines and lines[-1].strip().startswith("```"):
-        lines = lines[:-1]
-    return "\n".join(lines).strip()
 
 
 class OpenAIClient(ProviderClient):
@@ -70,7 +58,7 @@ class OpenAIClient(ProviderClient):
                     raise ModelError(f"OpenAI refused the request: {part.get('refusal')}", response_body=raw)
                 if part.get("type") == "output_text" and part.get("text"):
                     return Completion(
-                        text=_strip_json_code_fence(part["text"]),
+                        text=strip_json_code_fence(part["text"]),
                         usage=raw.get("usage", {}) or {},
                         finish_reason=raw.get("status"),
                         raw=raw,

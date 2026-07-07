@@ -40,6 +40,10 @@ class Settings:
     anthropic_api_key: str | None
     anthropic_version: str
     claude_api_base_url: str
+    hosted_api_base_url: str
+    hosted_api_key: str | None
+    hosted_api_timeout_seconds: float | None
+    hosted_model_base_urls: dict[str, str]
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -53,6 +57,16 @@ def _env_bool(name: str, default: bool) -> bool:
 def _env_list(name: str, default: str) -> list[str]:
     raw_value = os.getenv(name, default)
     return [part.strip() for part in raw_value.split(",") if part.strip()]
+
+
+def _env_url_map(name: str) -> dict[str, str]:
+    """Parse "key=url,key2=url2"; malformed entries skipped."""
+    out: dict[str, str] = {}
+    for entry in os.getenv(name, "").split(","):
+        key, _, url = entry.partition("=")
+        if key.strip() and url.strip():
+            out[key.strip()] = url.strip()
+    return out
 
 
 def _env_optional(name: str) -> str | None:
@@ -78,6 +92,10 @@ def get_settings() -> Settings:
         anthropic_api_key=_env_optional("ANTHROPIC_API_KEY"),
         anthropic_version=os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
         claude_api_base_url=os.getenv("CLAUDE_API_BASE_URL", "https://api.anthropic.com"),
+        hosted_api_base_url=os.getenv("HOSTED_API_BASE_URL", "http://localhost:8000"),
+        hosted_api_key=_env_optional("HOSTED_API_KEY"),
+        hosted_api_timeout_seconds=float(raw) if (raw := _env_optional("HOSTED_API_TIMEOUT_SECONDS")) else None,
+        hosted_model_base_urls=_env_url_map("HOSTED_MODEL_BASE_URLS"),
     )
 
 
