@@ -18,16 +18,15 @@ def _fact_ids(facts: list[RetrievedFact]) -> list[str]:
     ids: list[str] = []
     for rf in facts:
         ids.append(rf.fact.id)
-        if rf.matched is not None:  # shared_ground carries the recipient's counterpart fact
+        if rf.matched is not None:  # shared_ground's recipient-side counterpart
             ids.append(rf.matched.id)
     return ids
 
 
 class RagAugmentor(Augmentor):
     """Retrieves facts for the thread and appends a formatted block to the prompt.
-    With `degrade_on_error`, a retrieval failure yields an un-augmented prompt (and a
-    `rag_error` in provenance) instead of raising — for live serving, where a broken
-    embedder shouldn't fail the request; eval leaves it off so failures surface."""
+    `degrade_on_error`: on retrieval failure, return the prompt unaugmented with a
+    `rag_error` in provenance instead of raising — on for live, off for eval."""
 
     name = "rag"
 
@@ -38,7 +37,7 @@ class RagAugmentor(Augmentor):
     async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None, dict[str, Any]]:
         try:
             facts = await self._retrieve(context)
-        except Exception as error:  # noqa: BLE001 — degrade only when asked; otherwise re-raise
+        except Exception as error:  # noqa: BLE001
             if not self.degrade_on_error:
                 raise
             api_logger.warning("RAG retrieval failed, continuing without facts: %s", error)

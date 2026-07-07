@@ -14,7 +14,7 @@ from .context import PromptContext
 class BuiltPrompt:
     prompt: str
     evidence: str | None = None  # facts an augmentor injected, surfaced so the judge can see them too
-    provenance: dict[str, Any] = field(default_factory=dict)  # machine-readable trace: fact ids, flags, errors
+    provenance: dict[str, Any] = field(default_factory=dict)  # fact ids, flags, errors — for tracing, not the judge
 
 
 class Augmentor(ABC):
@@ -22,17 +22,15 @@ class Augmentor(ABC):
 
     @abstractmethod
     async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None, dict[str, Any]]:
-        """Return (augmented prompt, evidence block or None, provenance dict).
-        Evidence is judge-facing text; provenance is a machine-readable trace."""
+        """Return (prompt, evidence block or None, provenance)."""
 
     def spec(self) -> dict[str, Any]:
         return {"name": self.name}
 
 
 class CompositeAugmentor(Augmentor):
-    """Runs augmentors in sequence, threading the prompt through each. Evidence blocks
-    concatenate; provenance dicts merge. Being an Augmentor itself, it slots into a
-    builder's single `augment` slot unchanged."""
+    """Chain augmentors: evidence concatenates, provenance merges. Is itself an
+    Augmentor, so it fills the builder's single augment slot."""
 
     name = "composite"
 

@@ -12,8 +12,7 @@ router = APIRouter()
 
 @router.get("/models")
 async def list_models() -> dict[str, Any]:
-    """Models the extension can pick from. The default always appears in the list,
-    even when it is not part of KNOWN_MODELS."""
+    """Model menu for the extension; the default is always included."""
     model_ids = list(KNOWN_MODELS)
     if settings.default_model not in model_ids:
         model_ids.insert(0, settings.default_model)

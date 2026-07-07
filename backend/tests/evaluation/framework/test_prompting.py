@@ -106,7 +106,6 @@ class RagAugmentorTests(unittest.TestCase):
         # the surfaced block carries the facts (for the judge) without the prompt-only header
         self.assertIn("- Alice ships ML", block)
         self.assertNotIn("Relevant background:", block)
-        # provenance carries the retrieved fact ids for downstream joins
         self.assertEqual(provenance["fact_ids"], ["1", "1"])
 
     def test_shared_ground_pairs_both_names(self) -> None:
@@ -121,8 +120,7 @@ class RagAugmentorTests(unittest.TestCase):
         self.assertIn("Shared ground:", prompt)
         self.assertIn("Alice: Alice studied at MIT", prompt)
         self.assertIn("Bob: Bob studied at MIT", prompt)
-        # both sides of a shared-ground pair contribute their fact id
-        self.assertEqual(provenance["fact_ids"], ["1", "1"])
+        self.assertEqual(provenance["fact_ids"], ["1", "1"])  # pair yields both ids
 
     def test_empty_facts_leaves_prompt_unchanged(self) -> None:
         prompt, block, provenance = self._augment([])

@@ -8,8 +8,8 @@ ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
 def load_env_file(path: Path = ENV_FILE) -> None:
-    """Fill os.environ from a KEY=VALUE file without overriding existing vars.
-    Tolerates shell-style `export KEY=value` lines; skips non-literal values."""
+    """Load KEY=VALUE (or `export KEY=value`) lines into os.environ without overriding
+    existing vars. Skips values with shell substitution ($ or backtick)."""
     if not path.is_file():
         return
 

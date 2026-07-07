@@ -90,10 +90,9 @@ def full_rag(*, rag: RetrievalConfig | None = None, **kwargs) -> Arm:
     return arm("full_rag", rag=rag or DEFAULT_CONFIG, **kwargs)
 
 
-# --- live (non-eval) generation -------------------------------------------------
-# The serving path is one Arm running one Case. The augmentor chain (RAG that degrades
-# on error + the sender's free-text context) is what live adds over an eval arm. These
-# helpers return plain data so the router never touches Arm/Case/Candidate.
+# Live (non-eval) generation: one Arm running one Case, its augmentor chain adding
+# degrading-RAG + the sender's free text. Helpers return plain data, so the router
+# never touches Arm/Case/Candidate.
 
 
 @dataclass(frozen=True)
@@ -157,16 +156,14 @@ def _live_prompt(arm: Arm, *, prompt: str | None, evidence: str | None, provenan
 
 
 async def preview_live(model: str, *, suggest: str | None = None, **case_kwargs: Any) -> LivePrompt:
-    """Assemble the exact live prompt (template + RAG + context) with no model call.
-    Raises KeyError for an unknown model (get_client resolves it up front)."""
+    """Build the live prompt with no model call. Raises KeyError for an unknown model."""
     live = live_arm(model, suggest=suggest)
     built = await live.builder.build(_live_case(**case_kwargs))
     return _live_prompt(live, prompt=built.prompt, evidence=built.evidence, provenance=built.provenance)
 
 
 async def generate_live(model: str, *, suggest: str | None = None, **case_kwargs: Any) -> LiveGeneration:
-    """Run one live generation. A model failure is captured in `.error` (Arm.run never
-    raises); RAG failure degrades to a no-RAG prompt with `rag_error` in the prompt."""
+    """Run one live generation. Model failure lands in `.error` (Arm.run never raises)."""
     live = live_arm(model, suggest=suggest)
     candidate = await live.run(_live_case(**case_kwargs))
     prompt = _live_prompt(live, prompt=candidate.prompt, evidence=candidate.evidence, provenance=candidate.provenance)

@@ -9,9 +9,8 @@ HEADER = "Additional context from the sender (use it to steer this reply):"
 
 
 class AdditionalContextAugmentor(Augmentor):
-    """Appends the sender's free-text context, read from `context.meta['additional_context']`.
-    Per-request text rides in meta (like RagAugmentor's ids), so one instance serves any
-    request. Not evidence — it is instruction, not retrieved fact — so evidence stays None."""
+    """Appends the sender's free text from `context.meta['additional_context']`. It is
+    instruction, not retrieved fact, so evidence stays None."""
 
     name = "additional_context"
 

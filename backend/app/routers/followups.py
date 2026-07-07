@@ -23,8 +23,8 @@ DEFAULT_SENDER_NAME = LoginRequest.model_fields["username"].default
 
 
 async def build_case_kwargs(user_id: str, payload: FollowupGenerateRequest) -> dict[str, Any]:
-    """Resolve the recipient and thread into the keyword args the live-generation
-    helpers turn into a Case. Person resolution is app logic, so it stays in the router."""
+    """Resolve recipient + thread into the live-generation helpers' kwargs. Person
+    resolution is app logic, so it stays here rather than in the factory."""
     person_id = await get_or_create_person_id_by_name(user_id, payload.recipient_name, payload.source)
     thread = [
         {"sender_name": message.sender_name, "sent_time": message.sent_time, "body": message.body}
@@ -54,8 +54,7 @@ async def preview_followup_prompt(
     payload: FollowupGenerateRequest,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Assemble the exact generation prompt (template + RAG facts + sender context)
-    without calling a model or persisting anything."""
+    """The exact generation prompt, no model call and nothing persisted."""
     model = payload.model or settings.default_model
     case_kwargs = await build_case_kwargs(user["id"], payload)
     try:
@@ -98,8 +97,7 @@ async def generate_followup(
             Jsonb(list(prompt.fact_ids)),
             model,
             generation.text,
-            # everything needed to reproduce the suggestion later, alongside the
-            # columns: model_name, generated_text, user_prompt, retrieved_memory_ids
+            # reproduction trace, on top of the dedicated columns above
             Jsonb(
                 {
                     "promptSpec": prompt.spec,

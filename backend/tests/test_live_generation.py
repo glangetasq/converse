@@ -52,7 +52,7 @@ class AdditionalContextAugmentorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(prompt.startswith("BASE"))
         self.assertIn(CONTEXT_HEADER, prompt)
         self.assertTrue(prompt.rstrip().endswith("Mention the Berlin conference."))
-        self.assertIsNone(evidence)  # instruction, not judge-facing evidence
+        self.assertIsNone(evidence)  # instruction, not evidence
         self.assertEqual(provenance, {"additional_context": True})
 
     async def test_blank_context_is_a_noop(self) -> None:
@@ -131,7 +131,6 @@ class LiveFactoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(prompt.fact_ids, ("42",))
         self.assertIsNone(prompt.rag_error)
         self.assertIn("- Quentin ships ML", prompt.evidence)
-        # arm.spec() nests the composite augmentor chain under builder.augment
         augmentors = prompt.spec["builder"]["augment"]["augmentors"]
         self.assertEqual([a["name"] for a in augmentors], ["rag", "additional_context"])
 
