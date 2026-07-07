@@ -30,6 +30,10 @@ __pycache__/
 # IDE + tooling artifacts
 .idea/
 .playwright-mcp/
+node_modules/
+dev/e2e/shots/
+dev/e2e/package.json
+dev/e2e/package-lock.json
 
 # macOS
 .DS_Store
