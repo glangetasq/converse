@@ -4,11 +4,12 @@ Converse is a Chrome extension and backend prototype for generating better follo
 
 ## What It Does
 
-- Opens as a Chrome side panel on LinkedIn profiles, messages, and job postings.
-- Parses the on-page conversation and lets you steer tone, language, length, and extra instructions.
+- Opens as a Chrome side panel (Nord theme, JetBrains Mono) that follows the active tab, keeping per-tab inputs cached for 30 minutes.
+- Parses the on-page LinkedIn conversation or profile; a free-text context box steers the reply.
+- Generates through the FastAPI backend: RAG prompt assembly, a model menu served by the backend (default Claude Haiku), and persistence of every generation.
 - Runs a RAG pipeline that retrieves atomic facts — headlines, common ground, thread-relevant items — to ground each suggestion.
-- Serves generation and data through a FastAPI backend backed by Postgres.
-- Stores users, people, conversations, follow-up generations, feedback, and evaluation examples.
+- Includes a workbench view: inspect the parse, rate messages and save them as eval examples, save profiles to memory, and preview the exact generation prompt.
+- Stores users, people, conversations, follow-up generations, feedback, and evaluation examples in Postgres.
 - Runs an evaluation loop that generates a suggestion, judges it, and collects scores in a DataFrame.
 
 ## Analyses
@@ -32,4 +33,6 @@ The backend is organized by domain under `backend/app/`:
 - `evaluation/` — LinkedIn suggestion generation plus the LLM-as-judge framework and runner.
 - `routers/` + `web/` — FastAPI routes and request/response serialization.
 
-The extension lives in `frontend/`: side-panel UI, page parsers, prompt controls, and suggestion injection.
+The extension lives in `frontend/`: side-panel UI, page parsers, backend API client, and suggestion injection.
+
+`dev/` holds a mini-LinkedIn fixture site and a Playwright e2e harness that drive the real extension against the backend with a fake LLM provider — no API keys needed.
