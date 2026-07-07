@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-ZSH_SECRETS_FILE = Path.home() / ".zsh_secrets"
 
 # Keychain services the relay flow historically used; consulted only when a key
 # is in neither the process env nor an env file.
@@ -104,7 +103,6 @@ def secret(name: str) -> str | None:
 
 def get_settings() -> Settings:
     load_env_file()
-    load_env_file(ZSH_SECRETS_FILE)
     return Settings(
         database_url=os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/convo_maker"),
         port=int(os.getenv("PORT", "3000")),
