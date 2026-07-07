@@ -9,10 +9,25 @@ Converse extension  →  backend (localhost:3000)  →  OpenAI / Anthropic APIs
 
 ## Keys
 
-Provider keys live only in the backend environment (shell env or `backend/.env`):
+Provider keys are resolved by the backend at startup, in precedence order:
+
+1. process environment
+2. `backend/.env` (gitignored, `KEY=value` lines)
+3. macOS Keychain — services `convo-maker-openai-api-key` and
+   `convo-maker-anthropic-api-key` (the same items the old relay used)
 
 - `OPENAI_API_KEY` — OpenAI models and the embeddings used by RAG retrieval.
 - `ANTHROPIC_API_KEY` — Claude models (the default model is a Claude Haiku).
+
+Store or refresh a key in the Keychain with:
+
+```sh
+security add-generic-password -U -s convo-maker-openai-api-key -a "$USER" -w
+security add-generic-password -U -s convo-maker-anthropic-api-key -a "$USER" -w
+```
+
+Note: `uvicorn --reload` watches `.py` files only — after changing `.env` or the
+Keychain, restart the server (or touch any `.py` file) to re-resolve keys.
 
 Missing keys degrade cleanly: generation returns HTTP 502 with the reason, and RAG
 falls back to an un-augmented prompt (`ragError` in the response).
