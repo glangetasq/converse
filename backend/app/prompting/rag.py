@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..loggers import api_logger
 from ..retrieval import RetrievalConfig, RetrievedFact, retrieve_facts_for_thread
 from .builder import Augmentor
 from .context import PromptContext
@@ -25,24 +24,16 @@ def _fact_ids(facts: list[RetrievedFact]) -> list[str]:
 
 class RagAugmentor(Augmentor):
     """Retrieves facts for the thread and appends a formatted block to the prompt.
-    `degrade_on_error`: on retrieval failure, return the prompt unaugmented with a
-    `rag_error` in provenance instead of raising — on for live, off for eval."""
+    Raises on retrieval failure; wrap in a CompositeAugmentor with degrade_on_error
+    to make that non-fatal (e.g. live serving)."""
 
     name = "rag"
 
-    def __init__(self, config: RetrievalConfig | None = None, *, degrade_on_error: bool = False) -> None:
+    def __init__(self, config: RetrievalConfig | None = None) -> None:
         self.config = config or RetrievalConfig()
-        self.degrade_on_error = degrade_on_error
 
     async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None, dict[str, Any]]:
-        try:
-            facts = await self._retrieve(context)
-        except Exception as error:  # noqa: BLE001
-            if not self.degrade_on_error:
-                raise
-            api_logger.warning("RAG retrieval failed, continuing without facts: %s", error)
-            return prompt, None, {"rag_error": str(error)}
-
+        facts = await self._retrieve(context)
         if not facts:
             return prompt, None, {"fact_ids": []}
         block = self._format(facts, context.sender_name, context.recipient_name)
@@ -84,4 +75,4 @@ class RagAugmentor(Augmentor):
         return "\n\n".join(sections)
 
     def spec(self) -> dict[str, Any]:
-        return {"name": self.name, "k": self.config.k, "degrade_on_error": self.degrade_on_error}
+        return {"name": self.name, "k": self.config.k}

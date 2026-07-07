@@ -140,20 +140,6 @@ class RagAugmentorTests(unittest.TestCase):
 
         self.assertEqual(spec["name"], "rag")
         self.assertEqual(spec["k"], 8)  # RetrievalConfig default
-        self.assertFalse(spec["degrade_on_error"])
-
-    def test_degrade_on_error_swallows_retrieval_failure(self) -> None:
-        ctx = Ctx(thread=[{"sender_name": "Alice", "body": "hi"}], meta={"user_id": "u1", "person_id": "p1"})
-
-        async def boom(*args, **kwargs):  # noqa: ANN001, ANN002
-            raise RuntimeError("embedder down")
-
-        with patch("app.prompting.rag.retrieve_facts_for_thread", new=boom):
-            prompt, block, provenance = asyncio.run(RagAugmentor(degrade_on_error=True).augment(ctx, "BASE PROMPT"))
-
-        self.assertEqual(prompt, "BASE PROMPT")
-        self.assertIsNone(block)
-        self.assertEqual(provenance["rag_error"], "embedder down")
 
 
 if __name__ == "__main__":

@@ -45,10 +45,7 @@ def _case(cid: str = "c1") -> Case:
 class FactoryTests(unittest.TestCase):
     def test_arm_variants_flip_only_their_knob(self) -> None:
         self.assertIsNone(no_rag().builder.spec()["augment"])
-        self.assertEqual(
-            full_rag(rag=RetrievalConfig(k=12)).builder.spec()["augment"],
-            {"name": "rag", "k": 12, "degrade_on_error": False},
-        )
+        self.assertEqual(full_rag(rag=RetrievalConfig(k=12)).builder.spec()["augment"], {"name": "rag", "k": 12})
         variant = no_rag(model="gpt-5.4-nano", gen=GenConfig(temperature=0.5))
         self.assertEqual(variant.cfg.temperature, 0.5)
         self.assertEqual(variant.model, "gpt-5.4-nano")

@@ -44,6 +44,15 @@ class RecordingAugmentor(Augmentor):
         return f"{prompt}\n{self.marker}", self.marker, self._provenance
 
 
+class FailingAugmentor(Augmentor):
+    def __init__(self, name: str, message: str) -> None:
+        self.name = name
+        self._message = message
+
+    async def augment(self, context, prompt):
+        raise RuntimeError(self._message)
+
+
 class AdditionalContextAugmentorTests(unittest.IsolatedAsyncioTestCase):
     async def test_appends_context_from_meta(self) -> None:
         ctx = Ctx(thread=[], meta={"additional_context": "Mention the Berlin conference."})
@@ -83,11 +92,37 @@ class CompositeAugmentorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(evidence, "[A]\n\n[B]")
         self.assertEqual(provenance, {"fact_ids": ["1", "2"], "additional_context": True})
 
-    async def test_spec_lists_children(self) -> None:
-        composite = CompositeAugmentor([AdditionalContextAugmentor()])
+    async def test_spec_lists_children_and_degrade_flags(self) -> None:
+        composite = CompositeAugmentor([AdditionalContextAugmentor()], degrade_on_error=True)
         spec = composite.spec()
         self.assertEqual(spec["name"], "composite")
         self.assertEqual(spec["augmentors"], [{"name": "additional_context"}])
+        self.assertEqual(spec["degrade_on_error"], [True])
+
+    async def test_degrade_skips_failing_child_and_records_error(self) -> None:
+        composite = CompositeAugmentor(
+            [RecordingAugmentor("a", "[A]", {}), FailingAugmentor("rag", "embedder down")],
+            degrade_on_error=[False, True],
+        )
+        prompt, _, provenance = await composite.augment(Ctx(thread=[]), "BASE")
+
+        self.assertEqual(prompt, "BASE\n[A]")  # failed child left the prompt untouched
+        self.assertEqual(provenance["errors"], {"rag": "embedder down"})
+
+    async def test_non_degrading_child_propagates(self) -> None:
+        composite = CompositeAugmentor([FailingAugmentor("rag", "boom")], degrade_on_error=False)
+        with self.assertRaises(RuntimeError):
+            await composite.augment(Ctx(thread=[]), "BASE")
+
+    async def test_single_bool_applies_to_all(self) -> None:
+        composite = CompositeAugmentor([FailingAugmentor("a", "x"), FailingAugmentor("b", "y")], degrade_on_error=True)
+        prompt, _, provenance = await composite.augment(Ctx(thread=[]), "BASE")
+        self.assertEqual(prompt, "BASE")
+        self.assertEqual(provenance["errors"], {"a": "x", "b": "y"})
+
+    def test_degrade_sequence_length_must_match(self) -> None:
+        with self.assertRaises(ValueError):
+            CompositeAugmentor([AdditionalContextAugmentor()], degrade_on_error=[True, False])
 
 
 class StubClient:

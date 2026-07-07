@@ -117,10 +117,8 @@ def live_arm(model: str, *, suggest: str | None = None, rag: RetrievalConfig | N
     suggest = suggest or LIBRARY.latest_version(SUGGEST)
     template = LIBRARY.load_template(SUGGEST, suggest, fields=_SUGGEST_FIELDS)
     augment = CompositeAugmentor(
-        [
-            AdditionalContextAugmentor(),
-            RagAugmentor(rag or DEFAULT_CONFIG, degrade_on_error=True),
-        ]
+        [AdditionalContextAugmentor(), RagAugmentor(rag or DEFAULT_CONFIG)],
+        degrade_on_error=[False, True],  # RAG failure is non-fatal for live; context append is not
     )
     builder = SuggestionPromptBuilder(template, suggest, augment)
     return Arm("live", builder, get_client(model), model, GenConfig())
@@ -151,7 +149,7 @@ def _live_prompt(arm: Arm, *, prompt: str | None, evidence: str | None, provenan
         version=arm.builder.version,
         spec=arm.spec(),
         fact_ids=tuple(provenance.get("fact_ids", ())),
-        rag_error=provenance.get("rag_error"),
+        rag_error=provenance.get("errors", {}).get("rag"),
     )
 
 
