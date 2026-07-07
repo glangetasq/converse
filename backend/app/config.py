@@ -1,19 +1,10 @@
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-
-# Keychain services the relay flow historically used; consulted only when a key
-# is in neither the process env nor an env file.
-KEYCHAIN_SERVICES = {
-    "OPENAI_API_KEY": "convo-maker-openai-api-key",
-    "ANTHROPIC_API_KEY": "convo-maker-anthropic-api-key",
-}
 
 
 def load_env_file(path: Path = ENV_FILE) -> None:
@@ -34,24 +25,6 @@ def load_env_file(path: Path = ENV_FILE) -> None:
             continue
         if key and value and key not in os.environ:
             os.environ[key] = value
-
-
-def keychain_secret(service: str) -> str | None:
-    if sys.platform != "darwin":
-        return None
-
-    try:
-        result = subprocess.run(
-            ["/usr/bin/security", "find-generic-password", "-s", service, "-w"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-
-    value = result.stdout.strip()
-    return value if result.returncode == 0 and value else None
 
 
 @dataclass(frozen=True)
@@ -91,16 +64,6 @@ def _env_optional(name: str) -> str | None:
     return value or None
 
 
-def secret(name: str) -> str | None:
-    """Provider secret by precedence: process env > backend/.env > macOS Keychain."""
-    value = _env_optional(name)
-    if value:
-        return value
-
-    service = KEYCHAIN_SERVICES.get(name)
-    return keychain_secret(service) if service else None
-
-
 def get_settings() -> Settings:
     load_env_file()
     return Settings(
@@ -110,9 +73,9 @@ def get_settings() -> Settings:
         allowed_origins=_env_list("ALLOWED_ORIGINS", "http://localhost:3000,chrome-extension://*"),
         local_dev_user_email=os.getenv("LOCAL_DEV_USER_EMAIL", "local-dev@convo-maker.test"),
         default_model=os.getenv("DEFAULT_MODEL", "claude-haiku-4-5-20251001"),
-        openai_api_key=secret("OPENAI_API_KEY"),
+        openai_api_key=_env_optional("OPENAI_API_KEY"),
         openai_api_base_url=os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com"),
-        anthropic_api_key=secret("ANTHROPIC_API_KEY"),
+        anthropic_api_key=_env_optional("ANTHROPIC_API_KEY"),
         anthropic_version=os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
         claude_api_base_url=os.getenv("CLAUDE_API_BASE_URL", "https://api.anthropic.com"),
     )

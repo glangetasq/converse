@@ -1,7 +1,8 @@
 import hashlib
-import math
 import subprocess
 from typing import Any, Mapping, Sequence
+
+import numpy as np
 
 
 def fingerprint(text: str) -> str:
@@ -10,14 +11,14 @@ def fingerprint(text: str) -> str:
 
 
 def cosine_similarity(u: Sequence[float], v: Sequence[float]) -> float:
-    if len(u) != len(v) or not u:
+    if len(u) != len(v) or not len(u):
         raise ValueError("cosine_similarity needs two equal-length, non-empty vectors")
-    dot = sum(a * b for a, b in zip(u, v))
-    norm_u = math.sqrt(sum(a * a for a in u))
-    norm_v = math.sqrt(sum(b * b for b in v))
-    if norm_u == 0 or norm_v == 0:
+    a = np.asarray(u, dtype=float)
+    b = np.asarray(v, dtype=float)
+    norms = np.linalg.norm(a) * np.linalg.norm(b)
+    if norms == 0:
         raise ValueError("cosine_similarity is undefined for zero vectors")
-    return dot / (norm_u * norm_v)
+    return float(np.dot(a, b) / norms)
 
 
 def git_provenance() -> dict[str, Any]:
