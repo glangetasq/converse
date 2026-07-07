@@ -7,9 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+ZSH_SECRETS_FILE = Path.home() / ".zsh_secrets"
 
 # Keychain services the relay flow historically used; consulted only when a key
-# is in neither the process env nor backend/.env.
+# is in neither the process env nor an env file.
 KEYCHAIN_SERVICES = {
     "OPENAI_API_KEY": "convo-maker-openai-api-key",
     "ANTHROPIC_API_KEY": "convo-maker-anthropic-api-key",
@@ -17,16 +18,21 @@ KEYCHAIN_SERVICES = {
 
 
 def load_env_file(path: Path = ENV_FILE) -> None:
-    """Fill os.environ from a KEY=VALUE file without overriding existing vars."""
+    """Fill os.environ from a KEY=VALUE file without overriding existing vars.
+    Tolerates shell-style `export KEY=value` lines; skips non-literal values."""
     if not path.is_file():
         return
 
     for line in path.read_text().splitlines():
         line = line.strip()
+        if line.startswith("export "):
+            line = line.removeprefix("export ").lstrip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip().strip("'\"")
+        if "$" in value or "`" in value:
+            continue
         if key and value and key not in os.environ:
             os.environ[key] = value
 
@@ -98,6 +104,7 @@ def secret(name: str) -> str | None:
 
 def get_settings() -> Settings:
     load_env_file()
+    load_env_file(ZSH_SECRETS_FILE)
     return Settings(
         database_url=os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/convo_maker"),
         port=int(os.getenv("PORT", "3000")),

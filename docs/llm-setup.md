@@ -13,7 +13,8 @@ Provider keys are resolved by the backend at startup, in precedence order:
 
 1. process environment
 2. `backend/.env` (gitignored, `KEY=value` lines)
-3. macOS Keychain — services `convo-maker-openai-api-key` and
+3. `~/.zsh_secrets` (`export KEY="value"` lines; non-literal values are skipped)
+4. macOS Keychain — services `convo-maker-openai-api-key` and
    `convo-maker-anthropic-api-key` (the same items the old relay used)
 
 - `OPENAI_API_KEY` — OpenAI models and the embeddings used by RAG retrieval.

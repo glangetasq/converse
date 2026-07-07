@@ -36,6 +36,24 @@ class LoadEnvFileTests(unittest.TestCase):
     def test_missing_file_is_a_no_op(self) -> None:
         config.load_env_file(Path("/nonexistent/converse/.env"))
 
+    def test_accepts_shell_export_lines(self) -> None:
+        path = self.write_env('export CONVERSE_TEST_D="delta"\nexport CONVERSE_TEST_E=echo\n')
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CONVERSE_TEST_D", None)
+            os.environ.pop("CONVERSE_TEST_E", None)
+            config.load_env_file(path)
+            self.assertEqual(os.environ["CONVERSE_TEST_D"], "delta")
+            self.assertEqual(os.environ["CONVERSE_TEST_E"], "echo")
+
+    def test_skips_shell_substitution_values(self) -> None:
+        path = self.write_env('export CONVERSE_TEST_F="$(security find-generic-password)"\nCONVERSE_TEST_G=$HOME/x\n')
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CONVERSE_TEST_F", None)
+            os.environ.pop("CONVERSE_TEST_G", None)
+            config.load_env_file(path)
+            self.assertNotIn("CONVERSE_TEST_F", os.environ)
+            self.assertNotIn("CONVERSE_TEST_G", os.environ)
+
 
 class SecretPrecedenceTests(unittest.TestCase):
     def test_env_wins_over_keychain(self) -> None:
