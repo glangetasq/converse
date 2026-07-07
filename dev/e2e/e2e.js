@@ -134,6 +134,21 @@ async function waitFor(fn, timeoutMs = 8000, interval = 150) {
   const evidenceVisible = await popup.locator("#evidence-details").isVisible();
   const evidenceText = evidenceVisible ? await popup.textContent("#evidence-output") : "";
   check("generate: RAG evidence block shows sender facts", evidenceVisible && evidenceText.includes("About"), evidenceText.slice(0, 60));
+
+  // --- ingest: edit the draft, then save it with provenance ---
+  await popup.fill("#suggestion-output", `${suggestion} See you Thursday!`);
+  await popup.click("#ingest-button");
+  const ingestStatus = await waitFor(async () => {
+    const text = await popup.textContent("#results-status");
+    return text.includes("ingested") || text.includes("failed") ? text : null;
+  }, 10000);
+  check(
+    "ingest: edited draft saved with similarity",
+    Boolean(ingestStatus?.includes("ingested (edited)") && /similarity -?[01]\.\d{3}/.test(ingestStatus)),
+    String(ingestStatus)
+  );
+  const ingestDisabled = await popup.locator("#ingest-button").isDisabled();
+  check("ingest: button locks after success", ingestDisabled);
   await popup.screenshot({ path: path.join(SHOTS, "results.png") });
 
   // --- workbench: parse + rate + preview ---

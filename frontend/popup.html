@@ -65,7 +65,13 @@
               <button id="copy-suggestion-button" class="button button-ghost" type="button">copy</button>
             </div>
           </div>
-          <textarea id="suggestion-output" class="input suggestion-output" rows="7" readonly></textarea>
+          <textarea
+            id="suggestion-output"
+            class="input suggestion-output"
+            rows="7"
+            spellcheck="false"
+            placeholder="edit the draft freely, then ingest to save it"></textarea>
+          <p id="results-status" class="status-line" role="status" aria-live="polite"></p>
           <details id="evidence-details" class="evidence-details" hidden>
             <summary class="evidence-summary">grounding facts used</summary>
             <pre id="evidence-output" class="code-block"></pre>
@@ -74,7 +80,8 @@
 
         <div class="button-row">
           <button id="back-button" class="button" type="button">back</button>
-          <button id="regenerate-button" class="button button-primary" type="button">regenerate</button>
+          <button id="regenerate-button" class="button" type="button">regenerate</button>
+          <button id="ingest-button" class="button button-primary" type="button" title="save the final draft with full generation provenance">ingest</button>
         </div>
       </section>
 

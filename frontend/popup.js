@@ -38,10 +38,12 @@ const suggestionPanel = document.getElementById("suggestion-panel");
 const suggestionOutput = document.getElementById("suggestion-output");
 const evidenceDetails = document.getElementById("evidence-details");
 const evidenceOutput = document.getElementById("evidence-output");
+const resultsStatus = document.getElementById("results-status");
 const pickButton = document.getElementById("pick-button");
 const copySuggestionButton = document.getElementById("copy-suggestion-button");
 const backButton = document.getElementById("back-button");
 const regenerateButton = document.getElementById("regenerate-button");
+const ingestButton = document.getElementById("ingest-button");
 const refreshParseButton = document.getElementById("refresh-parse-button");
 const saveProfileButton = document.getElementById("save-profile-button");
 const saveExampleButton = document.getElementById("save-example-button");
@@ -61,8 +63,10 @@ const state = {
   view: "composer",
   currentUser: "",
   suggestion: "",
+  originalSuggestion: "",
   generationId: null,
   evidence: null,
+  ingest: null,
   generationState: "idle",
   parseSequence: 0,
   generateSequence: 0,
@@ -153,12 +157,29 @@ function setResultsState(resultsState) {
   regenerateButton.disabled = busy;
 }
 
+function formatIngestStatus(ingest) {
+  if (!ingest) {
+    return "";
+  }
+
+  const similarity = typeof ingest.similarity === "number" ? ` — similarity ${ingest.similarity.toFixed(3)}` : "";
+  return `ingested (${ingest.feedback})${similarity}`;
+}
+
+function renderIngestState() {
+  const hasText = Boolean(state.suggestion.trim());
+  ingestButton.disabled = !hasText || !state.generationId || Boolean(state.ingest);
+  ingestButton.textContent = state.ingest ? "ingested" : "ingest";
+  setStatus(resultsStatus, formatIngestStatus(state.ingest), state.ingest ? "success" : "muted");
+}
+
 function renderSuggestion() {
   suggestionOutput.value = state.suggestion;
   evidenceDetails.hidden = !state.evidence;
   evidenceOutput.textContent = state.evidence ?? "";
   pickButton.disabled = !state.suggestion.trim();
   copySuggestionButton.disabled = !state.suggestion.trim();
+  renderIngestState();
   setResultsState("suggestion");
   window.requestAnimationFrame(() => {
     autosizeSuggestionOutput();
@@ -263,8 +284,10 @@ async function saveTabState() {
     context: contextInput.value,
     view: state.view,
     suggestion: state.suggestion,
+    originalSuggestion: state.originalSuggestion,
     generationId: state.generationId,
-    evidence: state.evidence
+    evidence: state.evidence,
+    ingest: state.ingest
   };
 
   const isEmpty = !snapshot.context.trim() && !snapshot.suggestion && snapshot.view === "composer";
@@ -305,8 +328,10 @@ async function restoreTabState() {
 
   contextInput.value = snapshot?.context ?? "";
   state.suggestion = snapshot?.suggestion ?? "";
+  state.originalSuggestion = snapshot?.originalSuggestion ?? "";
   state.generationId = snapshot?.generationId ?? null;
   state.evidence = snapshot?.evidence ?? null;
+  state.ingest = snapshot?.ingest ?? null;
   state.workbench.parse = null;
   state.workbench.selections = [];
   state.workbench.previewVisible = false;
@@ -613,8 +638,10 @@ async function runGeneration() {
   }
 
   state.suggestion = String(generation?.suggestion ?? "").trim();
+  state.originalSuggestion = state.suggestion;
   state.generationId = generation?.generationId ?? null;
   state.evidence = generation?.evidence ?? null;
+  state.ingest = null;
   renderSuggestion();
   scheduleTabStateSave();
 }
@@ -1121,6 +1148,43 @@ backButton.addEventListener("click", () => {
   setView("composer");
   scheduleTabStateSave();
   contextInput.focus();
+});
+
+suggestionOutput.addEventListener("input", () => {
+  state.suggestion = suggestionOutput.value;
+  if (state.ingest) {
+    // an edit after ingest starts a new draft round — allow re-ingesting
+    state.ingest = null;
+  }
+  renderIngestState();
+  pickButton.disabled = !state.suggestion.trim();
+  copySuggestionButton.disabled = !state.suggestion.trim();
+  autosizeSuggestionOutput();
+  scheduleTabStateSave();
+});
+
+ingestButton.addEventListener("click", async () => {
+  const finalDraft = suggestionOutput.value.trim();
+  if (!finalDraft || !state.generationId) {
+    return;
+  }
+
+  ingestButton.disabled = true;
+  setStatus(resultsStatus, "ingesting…");
+
+  try {
+    const response = await ConverseApi.ingestFollowup(state.generationId, { finalDraft });
+    state.ingest = {
+      feedback: response?.userFeedback ?? "saved",
+      similarity: typeof response?.originalFinalSimilarity === "number" ? response.originalFinalSimilarity : null,
+      at: response?.ingestedAt ?? null
+    };
+    renderIngestState();
+    scheduleTabStateSave();
+  } catch (error) {
+    setStatus(resultsStatus, `ingest failed — ${errorText(error)}`, "error");
+    ingestButton.disabled = false;
+  }
 });
 
 pickButton.addEventListener("click", async () => {

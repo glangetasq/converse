@@ -61,6 +61,8 @@
     getBaseUrl,
     getModels: () => request("/api/llm/models"),
     generateFollowup: (payload) => request("/api/followups/generate", { method: "POST", body: payload }),
+    ingestFollowup: (generationId, payload) =>
+      request(`/api/followups/${generationId}/ingest`, { method: "POST", body: payload }),
     previewPrompt: (payload) => request("/api/followups/preview", { method: "POST", body: payload }),
     saveEvalExample: (payload) => request("/api/eval_examples", { method: "POST", body: payload }),
     saveParsedProfile: (payload) => request("/api/debug/parse_dump", { method: "POST", body: payload }),

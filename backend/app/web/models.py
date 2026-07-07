@@ -79,6 +79,10 @@ class FollowupFeedbackRequest(ApiModel):
     final_sent_text: str | None = Field(default=None, alias="finalSentText")
 
 
+class FollowupIngestRequest(ApiModel):
+    final_draft: str = Field(alias="finalDraft", min_length=1)
+
+
 class MemoryGenerationRequest(ApiModel):
     conversation_id: UUID = Field(alias="conversationId")
     person_id: UUID | None = Field(default=None, alias="personId")

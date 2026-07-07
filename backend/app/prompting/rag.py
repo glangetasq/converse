@@ -22,11 +22,18 @@ class RagAugmentor(Augmentor):
         self.config = config or RetrievalConfig()
 
     async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None]:
+        prompt, block, _ = await self.augment_with_facts(context, prompt)
+        return prompt, block
+
+    async def augment_with_facts(
+        self, context: PromptContext, prompt: str
+    ) -> tuple[str, str | None, list[RetrievedFact]]:
+        """Like augment, but also returns the retrieved facts for provenance tracking."""
         facts = await self._retrieve(context)
         if not facts:
-            return prompt, None
+            return prompt, None, []
         block = self._format(facts, context.sender_name, context.recipient_name)
-        return f"{prompt}\n\n{FACTS_HEADER}\n{block}", block
+        return f"{prompt}\n\n{FACTS_HEADER}\n{block}", block, facts
 
     async def _retrieve(self, context: PromptContext) -> list[RetrievedFact]:
         missing = [key for key in ("user_id", "person_id") if key not in context.meta]

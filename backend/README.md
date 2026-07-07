@@ -34,8 +34,9 @@ psql postgresql://postgres:postgres@localhost:5432/convo_maker -f schema.sql
 - `GET /api/persons/{id}/memory`
 - `POST /api/memory/generate`
 - `POST /api/memory/search`
-- `POST /api/followups/generate` — RAG prompt + provider call, persists the generation
+- `POST /api/followups/generate` — RAG prompt + provider call; persists the generation with full reproduction metadata (prompt spec, gen config, thread, retrieved fact ids)
 - `POST /api/followups/preview` — the exact generation prompt, no model call
+- `POST /api/followups/{id}/ingest` — record the user-approved final draft: accepted/edited flag + original↔final cosine similarity
 - `POST /api/followups/{id}/feedback`
 - `GET /api/llm/models` — model menu for the extension + default
 - `POST /api/eval_examples`

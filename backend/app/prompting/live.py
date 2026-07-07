@@ -36,6 +36,8 @@ class LivePrompt:
     evidence: str | None
     version: str
     rag_error: str | None = None
+    fact_ids: tuple[str, ...] = ()
+    spec: Mapping[str, Any] = field(default_factory=dict)
 
 
 def suggestion_builder(version: str | None = None) -> SuggestionPromptBuilder:
@@ -52,10 +54,16 @@ async def build_live_prompt(
 ) -> LivePrompt:
     builder = suggestion_builder(version)
     built = await builder.build(context)
+    augmentor = RagAugmentor(DEFAULT_CONFIG)
     prompt, evidence, rag_error = built.prompt, None, None
+    fact_ids: list[str] = []
 
     try:
-        prompt, evidence = await RagAugmentor(DEFAULT_CONFIG).augment(context, built.prompt)
+        prompt, evidence, facts = await augmentor.augment_with_facts(context, built.prompt)
+        for retrieved in facts:
+            fact_ids.append(retrieved.fact.id)
+            if retrieved.matched is not None:
+                fact_ids.append(retrieved.matched.id)
     except Exception as error:  # noqa: BLE001 — degrade to no-RAG rather than fail the request
         rag_error = str(error)
         api_logger.warning("RAG augmentation failed, generating without facts: %s", rag_error)
@@ -64,4 +72,6 @@ async def build_live_prompt(
     if extra:
         prompt = f"{prompt}\n\n{ADDITIONAL_CONTEXT_HEADER}\n{extra}"
 
-    return LivePrompt(prompt, evidence, builder.version, rag_error)
+    # spec reflects what actually shaped the prompt: augment is None when RAG failed
+    spec = {**builder.spec(), "augment": augmentor.spec() if rag_error is None else None}
+    return LivePrompt(prompt, evidence, builder.version, rag_error, tuple(fact_ids), spec)
