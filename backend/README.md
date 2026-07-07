@@ -1,6 +1,6 @@
 # Converse FastAPI backend
 
-This is the Python API for Converse. The extension talks only to this backend; provider keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) live in its environment — see `docs/llm-setup.md`.
+This is the Python API for Converse. The extension talks only to this backend; provider keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) live in its environment, resolved at startup from the process env or `backend/.env`.
 
 ## Run locally
 
