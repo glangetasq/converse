@@ -91,7 +91,7 @@ def full_rag(*, rag: RetrievalConfig | None = None, **kwargs) -> Arm:
 
 
 # Live (non-eval) generation: one Arm running one Case, its augmentor chain adding
-# degrading-RAG + the sender's free text. Helpers return plain data, so the router
+# the sender's free text + degrading-RAG. Helpers return plain data, so the router
 # never touches Arm/Case/Candidate.
 
 
@@ -118,8 +118,8 @@ def live_arm(model: str, *, suggest: str | None = None, rag: RetrievalConfig | N
     template = LIBRARY.load_template(SUGGEST, suggest, fields=_SUGGEST_FIELDS)
     augment = CompositeAugmentor(
         [
-            RagAugmentor(rag or DEFAULT_CONFIG, degrade_on_error=True),
             AdditionalContextAugmentor(),
+            RagAugmentor(rag or DEFAULT_CONFIG, degrade_on_error=True),
         ]
     )
     builder = SuggestionPromptBuilder(template, suggest, augment)

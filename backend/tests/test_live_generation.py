@@ -121,18 +121,18 @@ class LiveFactoryTests(unittest.IsolatedAsyncioTestCase):
 
         return mock.patch("app.prompting.rag.retrieve_facts_for_thread", new=fake_retrieve)
 
-    async def test_preview_orders_rag_then_context_and_surfaces_provenance(self) -> None:
+    async def test_preview_orders_context_then_rag_and_surfaces_provenance(self) -> None:
         facts = [RetrievedFact(fact=fact("Quentin ships ML", "42", person_id=None), label="about_you")]
         with self.stub_retrieval(facts):
             prompt = await factory.preview_live("claude-haiku-4-5-20251001", **live_kwargs())
 
-        self.assertLess(prompt.prompt.index("Relevant background:"), prompt.prompt.index(CONTEXT_HEADER))
+        self.assertLess(prompt.prompt.index(CONTEXT_HEADER), prompt.prompt.index("Relevant background:"))
         self.assertIn("- Quentin ships ML", prompt.prompt)
         self.assertEqual(prompt.fact_ids, ("42",))
         self.assertIsNone(prompt.rag_error)
         self.assertIn("- Quentin ships ML", prompt.evidence)
         augmentors = prompt.spec["builder"]["augment"]["augmentors"]
-        self.assertEqual([a["name"] for a in augmentors], ["rag", "additional_context"])
+        self.assertEqual([a["name"] for a in augmentors], ["additional_context", "rag"])
 
     async def test_preview_degrades_when_retrieval_fails(self) -> None:
         async def boom(*args, **kwargs):  # noqa: ANN001, ANN002
