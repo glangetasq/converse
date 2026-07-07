@@ -165,7 +165,6 @@ async def ingest_followup(
     metadata = dict(generation["metadata"] or {})
     metadata.update(
         {
-            "originalFinalSimilarity": similarity,
             "similarityError": similarity_error,
             "ingestedAt": datetime.now(timezone.utc).isoformat(),
         }
@@ -176,11 +175,12 @@ async def ingest_followup(
         UPDATE followup_generations
         SET final_sent_text = %s,
             user_feedback = %s,
+            original_final_similarity = %s,
             metadata = %s
         WHERE user_id = %s AND id = %s
         RETURNING *
         """,
-        (final, user_feedback, Jsonb(metadata), user["id"], generation_id),
+        (final, user_feedback, similarity, Jsonb(metadata), user["id"], generation_id),
     )
 
     api_logger.info(

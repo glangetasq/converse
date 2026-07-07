@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS followup_generations (
   generated_text text NOT NULL,
   user_feedback text,
   final_sent_text text,
+  original_final_similarity real,
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );

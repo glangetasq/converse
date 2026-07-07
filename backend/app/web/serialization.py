@@ -35,6 +35,7 @@ KEY_MAP = {
     "generated_text": "generatedText",
     "user_feedback": "userFeedback",
     "final_sent_text": "finalSentText",
+    "original_final_similarity": "originalFinalSimilarity",
 }
 
 
