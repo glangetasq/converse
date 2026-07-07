@@ -48,6 +48,7 @@ class Arm:
             text=completion.text,
             prompt=built.prompt,
             evidence=built.evidence,
+            provenance=built.provenance,
             usage=completion.usage,
         )
 

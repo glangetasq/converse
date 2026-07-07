@@ -4,11 +4,18 @@ version left None resolves to the latest asset on disk (AssetLibrary.latest_vers
 
 from __future__ import annotations
 
-from typing import Sequence
+from dataclasses import dataclass, field
+from typing import Any, Sequence
 
 from ...assets import ASSETS_DIR, AssetLibrary
 from ...llm import GenConfig, get_client
-from ...prompting import RagAugmentor, SuggestionPromptBuilder
+from ...prompting import (
+    AdditionalContextAugmentor,
+    CompositeAugmentor,
+    RagAugmentor,
+    SuggestionPromptBuilder,
+    Thread,
+)
 from ...retrieval import DEFAULT_CONFIG, RetrievalConfig
 from ...utils import render_thread
 from ..framework import (
@@ -81,6 +88,89 @@ def no_rag(**kwargs) -> Arm:
 
 def full_rag(*, rag: RetrievalConfig | None = None, **kwargs) -> Arm:
     return arm("full_rag", rag=rag or DEFAULT_CONFIG, **kwargs)
+
+
+# --- live (non-eval) generation -------------------------------------------------
+# The serving path is one Arm running one Case. The augmentor chain (RAG that degrades
+# on error + the sender's free-text context) is what live adds over an eval arm. These
+# helpers return plain data so the router never touches Arm/Case/Candidate.
+
+
+@dataclass(frozen=True)
+class LivePrompt:
+    prompt: str
+    evidence: str | None
+    version: str
+    spec: dict[str, Any]
+    fact_ids: tuple[str, ...] = ()
+    rag_error: str | None = None
+
+
+@dataclass(frozen=True)
+class LiveGeneration:
+    prompt: LivePrompt
+    text: str
+    usage: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+
+
+def live_arm(model: str, *, suggest: str | None = None, rag: RetrievalConfig | None = None) -> Arm:
+    suggest = suggest or LIBRARY.latest_version(SUGGEST)
+    template = LIBRARY.load_template(SUGGEST, suggest, fields=_SUGGEST_FIELDS)
+    augment = CompositeAugmentor(
+        [
+            RagAugmentor(rag or DEFAULT_CONFIG, degrade_on_error=True),
+            AdditionalContextAugmentor(),
+        ]
+    )
+    builder = SuggestionPromptBuilder(template, suggest, augment)
+    return Arm("live", builder, get_client(model), model, GenConfig())
+
+
+def _live_case(
+    *,
+    thread: Thread,
+    sender_name: str,
+    recipient_name: str,
+    user_id: str,
+    person_id: str | None,
+    additional_context: str | None,
+) -> Case:
+    return Case(
+        id="live",
+        thread=thread,
+        sender_name=sender_name,
+        recipient_name=recipient_name,
+        meta={"user_id": user_id, "person_id": person_id, "additional_context": additional_context},
+    )
+
+
+def _live_prompt(arm: Arm, *, prompt: str | None, evidence: str | None, provenance: dict[str, Any]) -> LivePrompt:
+    return LivePrompt(
+        prompt=prompt or "",
+        evidence=evidence,
+        version=arm.builder.version,
+        spec=arm.spec(),
+        fact_ids=tuple(provenance.get("fact_ids", ())),
+        rag_error=provenance.get("rag_error"),
+    )
+
+
+async def preview_live(model: str, *, suggest: str | None = None, **case_kwargs: Any) -> LivePrompt:
+    """Assemble the exact live prompt (template + RAG + context) with no model call.
+    Raises KeyError for an unknown model (get_client resolves it up front)."""
+    live = live_arm(model, suggest=suggest)
+    built = await live.builder.build(_live_case(**case_kwargs))
+    return _live_prompt(live, prompt=built.prompt, evidence=built.evidence, provenance=built.provenance)
+
+
+async def generate_live(model: str, *, suggest: str | None = None, **case_kwargs: Any) -> LiveGeneration:
+    """Run one live generation. A model failure is captured in `.error` (Arm.run never
+    raises); RAG failure degrades to a no-RAG prompt with `rag_error` in the prompt."""
+    live = live_arm(model, suggest=suggest)
+    candidate = await live.run(_live_case(**case_kwargs))
+    prompt = _live_prompt(live, prompt=candidate.prompt, evidence=candidate.evidence, provenance=candidate.provenance)
+    return LiveGeneration(prompt=prompt, text=candidate.text, usage=candidate.usage, error=candidate.error)
 
 
 class _JudgePrompt(JudgePromptBuilder):

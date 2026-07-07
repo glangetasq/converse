@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..loggers import api_logger
 from ..retrieval import RetrievalConfig, RetrievedFact, retrieve_facts_for_thread
 from .builder import Augmentor
 from .context import PromptContext
@@ -13,27 +14,40 @@ def _bullets(header: str, contents: list[str]) -> str:
     return header + "\n" + "\n".join(f"- {content}" for content in contents)
 
 
+def _fact_ids(facts: list[RetrievedFact]) -> list[str]:
+    ids: list[str] = []
+    for rf in facts:
+        ids.append(rf.fact.id)
+        if rf.matched is not None:  # shared_ground carries the recipient's counterpart fact
+            ids.append(rf.matched.id)
+    return ids
+
+
 class RagAugmentor(Augmentor):
-    """Retrieves facts for the thread and appends a formatted block to the prompt."""
+    """Retrieves facts for the thread and appends a formatted block to the prompt.
+    With `degrade_on_error`, a retrieval failure yields an un-augmented prompt (and a
+    `rag_error` in provenance) instead of raising — for live serving, where a broken
+    embedder shouldn't fail the request; eval leaves it off so failures surface."""
 
     name = "rag"
 
-    def __init__(self, config: RetrievalConfig | None = None) -> None:
+    def __init__(self, config: RetrievalConfig | None = None, *, degrade_on_error: bool = False) -> None:
         self.config = config or RetrievalConfig()
+        self.degrade_on_error = degrade_on_error
 
-    async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None]:
-        prompt, block, _ = await self.augment_with_facts(context, prompt)
-        return prompt, block
+    async def augment(self, context: PromptContext, prompt: str) -> tuple[str, str | None, dict[str, Any]]:
+        try:
+            facts = await self._retrieve(context)
+        except Exception as error:  # noqa: BLE001 — degrade only when asked; otherwise re-raise
+            if not self.degrade_on_error:
+                raise
+            api_logger.warning("RAG retrieval failed, continuing without facts: %s", error)
+            return prompt, None, {"rag_error": str(error)}
 
-    async def augment_with_facts(
-        self, context: PromptContext, prompt: str
-    ) -> tuple[str, str | None, list[RetrievedFact]]:
-        """Like augment, but also returns the retrieved facts for provenance tracking."""
-        facts = await self._retrieve(context)
         if not facts:
-            return prompt, None, []
+            return prompt, None, {"fact_ids": []}
         block = self._format(facts, context.sender_name, context.recipient_name)
-        return f"{prompt}\n\n{FACTS_HEADER}\n{block}", block, facts
+        return f"{prompt}\n\n{FACTS_HEADER}\n{block}", block, {"fact_ids": _fact_ids(facts)}
 
     async def _retrieve(self, context: PromptContext) -> list[RetrievedFact]:
         missing = [key for key in ("user_id", "person_id") if key not in context.meta]
@@ -71,4 +85,4 @@ class RagAugmentor(Augmentor):
         return "\n\n".join(sections)
 
     def spec(self) -> dict[str, Any]:
-        return {"name": self.name, "k": self.config.k}
+        return {"name": self.name, "k": self.config.k, "degrade_on_error": self.degrade_on_error}

@@ -37,8 +37,8 @@ def _fact(content: str, *, person_id: str | None = None) -> FactRow:
 class AppendAugmentor(Augmentor):
     name = "append"
 
-    async def augment(self, context: Any, prompt: str) -> tuple[str, str | None]:
-        return prompt + "\n[AUG]", "[AUG]"
+    async def augment(self, context: Any, prompt: str) -> tuple[str, str | None, dict]:
+        return prompt + "\n[AUG]", "[AUG]", {}
 
 
 def _template() -> Template:
@@ -77,7 +77,7 @@ class SuggestionPromptBuilderTests(unittest.TestCase):
 
 
 class RagAugmentorTests(unittest.TestCase):
-    def _augment(self, facts: list[RetrievedFact], ctx: Ctx | None = None) -> tuple[str, str | None]:
+    def _augment(self, facts: list[RetrievedFact], ctx: Ctx | None = None) -> tuple[str, str | None, dict]:
         ctx = ctx or Ctx(
             thread=[{"sender_name": "Alice", "body": "hi"}],
             meta={"user_id": "u1", "person_id": "p1"},
@@ -95,7 +95,7 @@ class RagAugmentorTests(unittest.TestCase):
             RetrievedFact(fact=_fact("Bob leads infra", person_id="p1"), label="about_them"),
         ]
 
-        prompt, block = self._augment(facts)
+        prompt, block, provenance = self._augment(facts)
 
         self.assertTrue(prompt.startswith("BASE PROMPT"))
         self.assertIn("Relevant background:", prompt)
@@ -106,6 +106,8 @@ class RagAugmentorTests(unittest.TestCase):
         # the surfaced block carries the facts (for the judge) without the prompt-only header
         self.assertIn("- Alice ships ML", block)
         self.assertNotIn("Relevant background:", block)
+        # provenance carries the retrieved fact ids for downstream joins
+        self.assertEqual(provenance["fact_ids"], ["1", "1"])
 
     def test_shared_ground_pairs_both_names(self) -> None:
         pair = RetrievedFact(
@@ -114,17 +116,20 @@ class RagAugmentorTests(unittest.TestCase):
             matched=_fact("Bob studied at MIT", person_id="p1"),
         )
 
-        prompt, _ = self._augment([pair])
+        prompt, _, provenance = self._augment([pair])
 
         self.assertIn("Shared ground:", prompt)
         self.assertIn("Alice: Alice studied at MIT", prompt)
         self.assertIn("Bob: Bob studied at MIT", prompt)
+        # both sides of a shared-ground pair contribute their fact id
+        self.assertEqual(provenance["fact_ids"], ["1", "1"])
 
     def test_empty_facts_leaves_prompt_unchanged(self) -> None:
-        prompt, block = self._augment([])
+        prompt, block, provenance = self._augment([])
 
         self.assertEqual(prompt, "BASE PROMPT")
         self.assertIsNone(block)
+        self.assertEqual(provenance["fact_ids"], [])
 
     def test_missing_meta_ids_raises_keyerror(self) -> None:
         ctx = Ctx(thread=[{"sender_name": "Alice", "body": "hi"}], meta={"user_id": "u1"})
@@ -137,6 +142,20 @@ class RagAugmentorTests(unittest.TestCase):
 
         self.assertEqual(spec["name"], "rag")
         self.assertEqual(spec["k"], 8)  # RetrievalConfig default
+        self.assertFalse(spec["degrade_on_error"])
+
+    def test_degrade_on_error_swallows_retrieval_failure(self) -> None:
+        ctx = Ctx(thread=[{"sender_name": "Alice", "body": "hi"}], meta={"user_id": "u1", "person_id": "p1"})
+
+        async def boom(*args, **kwargs):  # noqa: ANN001, ANN002
+            raise RuntimeError("embedder down")
+
+        with patch("app.prompting.rag.retrieve_facts_for_thread", new=boom):
+            prompt, block, provenance = asyncio.run(RagAugmentor(degrade_on_error=True).augment(ctx, "BASE PROMPT"))
+
+        self.assertEqual(prompt, "BASE PROMPT")
+        self.assertIsNone(block)
+        self.assertEqual(provenance["rag_error"], "embedder down")
 
 
 if __name__ == "__main__":

@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from .builder import Augmentor, BuiltPrompt, SuggestionPromptBuilder
+from .additional_context import AdditionalContextAugmentor
+from .builder import Augmentor, BuiltPrompt, CompositeAugmentor, SuggestionPromptBuilder
 from .context import PromptContext, Thread
-from .live import LiveContext, LivePrompt, build_live_prompt
 from .rag import RagAugmentor
 
 __all__ = [
+    "AdditionalContextAugmentor",
     "Augmentor",
     "BuiltPrompt",
-    "LiveContext",
-    "LivePrompt",
+    "CompositeAugmentor",
     "PromptContext",
     "RagAugmentor",
     "SuggestionPromptBuilder",
     "Thread",
-    "build_live_prompt",
 ]

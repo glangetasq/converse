@@ -26,6 +26,7 @@ class Candidate:
     text: str
     prompt: str | None = None
     evidence: str | None = None  # facts the arm retrieved, for the judge to score groundedness against
+    provenance: dict[str, Any] = field(default_factory=dict)  # machine-readable trace from the builder
     usage: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
 
