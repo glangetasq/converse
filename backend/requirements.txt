@@ -2,15 +2,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 psycopg[binary,pool]==3.2.3
 email-validator==2.2.0
+
+# Runtime imports: numpy (utils/retrieval), pandas (followups -> evaluation.linkedin).
+numpy==2.4.4
 pandas==2.2.3
-
-# dev tooling
-black==26.5.1
-
-# notebooks / analysis (convo_maker/notebooks)
-jupyterlab==4.6.1
-ipykernel==7.3.0
-matplotlib==3.11.0
-seaborn==0.13.2
-scipy==1.17.1
-nest-asyncio==1.6.0

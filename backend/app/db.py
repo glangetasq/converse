@@ -17,7 +17,17 @@ pool: AsyncConnectionPool | None = None
 async def open_pool(database_url: str) -> None:
     global pool
     db_logger.info("Opening database pool")
-    pool = AsyncConnectionPool(database_url, open=False, kwargs={"row_factory": dict_row})
+    # min_size=0 keeps a cold start from blocking on a suspended Neon; prepare_threshold=None is
+    # required for Neon's pooled (PgBouncer) endpoint, which breaks server-side prepared statements.
+    pool = AsyncConnectionPool(
+        database_url,
+        open=False,
+        min_size=0,
+        max_size=5,
+        max_idle=120,
+        check=AsyncConnectionPool.check_connection,
+        kwargs={"row_factory": dict_row, "prepare_threshold": None, "connect_timeout": 10},
+    )
     await pool.open(wait=True)
 
 

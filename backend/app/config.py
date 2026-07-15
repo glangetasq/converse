@@ -32,6 +32,7 @@ class Settings:
     database_url: str
     port: int
     auto_create_tables: bool
+    api_key: str | None
     allowed_origins: list[str]
     local_dev_user_email: str
     default_model: str
@@ -83,7 +84,8 @@ def get_settings() -> Settings:
     return Settings(
         database_url=os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/convo_maker"),
         port=int(os.getenv("PORT", "3000")),
-        auto_create_tables=_env_bool("AUTO_CREATE_TABLES", True),
+        auto_create_tables=_env_bool("AUTO_CREATE_TABLES", False),
+        api_key=_env_optional("CONVERSE_API_KEY"),
         allowed_origins=_env_list("ALLOWED_ORIGINS", "http://localhost:3000,chrome-extension://*"),
         local_dev_user_email=os.getenv("LOCAL_DEV_USER_EMAIL", "local-dev@convo-maker.test"),
         default_model=os.getenv("DEFAULT_MODEL", "claude-haiku-4-5-20251001"),

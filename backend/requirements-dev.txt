@@ -1,0 +1,12 @@
+# Dev/notebook tooling; not installed in the Docker image.
+-r requirements.txt
+
+black==26.5.1
+
+# notebooks / analysis (convo_maker/notebooks)
+jupyterlab==4.6.1
+ipykernel==7.3.0
+matplotlib==3.11.0
+seaborn==0.13.2
+scipy==1.17.1
+nest-asyncio==1.6.0
