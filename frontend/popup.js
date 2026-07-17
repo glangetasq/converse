@@ -45,6 +45,7 @@ const suggestionOutput = document.getElementById("suggestion-output");
 const evidenceDetails = document.getElementById("evidence-details");
 const evidenceOutput = document.getElementById("evidence-output");
 const resultsStatus = document.getElementById("results-status");
+const generationTiming = document.getElementById("generation-timing");
 const pickButton = document.getElementById("pick-button");
 const copySuggestionButton = document.getElementById("copy-suggestion-button");
 const backButton = document.getElementById("back-button");
@@ -75,6 +76,7 @@ const state = {
   generationId: null,
   evidence: null,
   ingest: null,
+  generationMs: null,
   generationState: "idle",
   parseSequence: 0,
   generateSequence: 0,
@@ -113,6 +115,19 @@ function isSelfSender(sender) {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function formatDuration(ms) {
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`;
+  }
+  if (ms < 60000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.round((ms % 60000) / 1000);
+  return seconds === 0 ? `${minutes}min` : `${minutes}min ${seconds}s`;
 }
 
 function setStatus(element, message, tone = "muted") {
@@ -223,6 +238,8 @@ function renderIngestState() {
 
 function renderSuggestion() {
   suggestionOutput.value = state.suggestion;
+  generationTiming.hidden = typeof state.generationMs !== "number";
+  generationTiming.textContent = generationTiming.hidden ? "" : formatDuration(state.generationMs);
   evidenceDetails.hidden = !state.evidence;
   evidenceOutput.textContent = state.evidence ?? "";
   pickButton.disabled = !state.suggestion.trim();
@@ -380,6 +397,8 @@ async function restoreTabState() {
   state.generationId = snapshot?.generationId ?? null;
   state.evidence = snapshot?.evidence ?? null;
   state.ingest = snapshot?.ingest ?? null;
+  // not snapshotted: a restored suggestion has no honest timing to report
+  state.generationMs = null;
   state.workbench.parse = null;
   state.workbench.selections = [];
   state.workbench.previewVisible = false;
@@ -636,6 +655,7 @@ function buildGenerationPayload(output) {
 
 async function runGeneration() {
   const sequence = ++state.generateSequence;
+  state.generationMs = null;
   setView("results");
   setResultsState("loading");
 
@@ -670,6 +690,9 @@ async function runGeneration() {
   }
 
   let generation;
+  // Times the backend round trip only: page parsing is local, so a cold start
+  // (container + Neon resume) shows up here and nowhere else.
+  const startedAt = performance.now();
   try {
     generation = await ConverseApi.generateFollowup(payload);
   } catch (error) {
@@ -680,11 +703,13 @@ async function runGeneration() {
     renderGenerationError("generation failed", errorText(error));
     return;
   }
+  const elapsedMs = performance.now() - startedAt;
 
   if (sequence !== state.generateSequence) {
     return;
   }
 
+  state.generationMs = elapsedMs;
   state.suggestion = String(generation?.suggestion ?? "").trim();
   state.originalSuggestion = state.suggestion;
   state.generationId = generation?.generationId ?? null;
