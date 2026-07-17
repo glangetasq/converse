@@ -1,0 +1,33 @@
+# Flags for gcp_deploy.sh. Service name is positional, so it lives there.
+
+# image — never :latest (the tag string is diffed, not the digest)
+--image: europe-west2-docker.pkg.dev/converse-2997/converse/backend:v1
+--region: europe-west2
+
+# access — CONVERSE_API_KEY is the real guard.
+# runs as the dedicated SA, not the default compute one: only it holds secretAccessor.
+--allow-unauthenticated:
+--service-account: converse-backend-run@converse-2997.iam.gserviceaccount.com
+
+# scaling — max 1 x db.py pool max_size=5 = 5 Neon connections
+--min-instances: 0
+--max-instances: 1
+--concurrency: 40
+
+# resources — 1Gi: pandas + numpy imported at load
+--cpu: 1
+--memory: 1Gi
+--port: 8080
+
+# env — "false" quoted: bare false is a YAML bool
+--set-env-vars:
+  AUTO_CREATE_TABLES: "false"
+  ALLOWED_ORIGINS: "chrome-extension://*"
+  DEFAULT_MODEL: claude-haiku-4-5-20251001
+
+# secrets — names only; needs secretAccessor on the runtime SA
+--set-secrets:
+  DATABASE_URL: DATABASE_URL:latest
+  OPENAI_API_KEY: OPENAI_API_KEY:latest
+  ANTHROPIC_API_KEY: ANTHROPIC_API_KEY:latest
+  CONVERSE_API_KEY: CONVERSE_API_KEY:latest
