@@ -4,26 +4,24 @@ This is the Python API for Converse. The extension talks only to this backend; p
 
 ## Run locally
 
+The database is Neon (serverless Postgres); there is no local database. Point `DATABASE_URL` at the Neon **pooled** url and run the API natively:
+
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-docker compose up -d postgres
-uvicorn app.main:app --reload --port 3000
+source ../scripts/load_secrets.sh          # exports NEON_POOLED_URL (+ provider keys)
+DATABASE_URL="$NEON_POOLED_URL" uvicorn app.main:app --reload --port 3000
 ```
 
-Or run the API and database together:
+Keep `AUTO_CREATE_TABLES` unset/false — the schema is loaded out-of-band, not on startup. To apply it to a fresh database, run `sql/*.sql` in numeric order against the **direct** url:
 
 ```bash
-docker compose up --build
+for f in sql/*.sql; do psql "$NEON_DIRECT_URL" -v ON_ERROR_STOP=1 -f "$f"; done
 ```
 
-The default `AUTO_CREATE_TABLES=true` applies `schema.sql` on startup. You can also apply it manually:
-
-```bash
-psql postgresql://postgres:postgres@localhost:5432/convo_maker -f schema.sql
-```
+The deployed backend runs on Cloud Run; see `scripts/gcp_deploy.sh`.
 
 ## Routes
 
@@ -41,5 +39,3 @@ psql postgresql://postgres:postgres@localhost:5432/convo_maker -f schema.sql
 - `GET /api/llm/models` — model menu for the extension + default
 - `POST /api/eval_examples`
 - `POST /api/debug/parse_dump`
-
-`postgres_demo.py` shows a minimal write and read using the same tables.
