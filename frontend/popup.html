@@ -98,7 +98,15 @@
 
         <section id="parse-panel" class="workbench-panel">
           <div id="message-list" class="message-list"></div>
-          <pre id="parse-json" class="code-block" hidden></pre>
+          <div id="parse-json-block" hidden>
+            <div class="field-header">
+              <p class="field-label">parse json</p>
+              <div class="field-header-actions">
+                <button id="copy-parse-json-button" class="button button-ghost" type="button">copy</button>
+              </div>
+            </div>
+            <pre id="parse-json" class="code-block"></pre>
+          </div>
         </section>
 
         <section id="preview-panel" class="workbench-panel" hidden>

@@ -58,6 +58,8 @@ const workbenchStatus = document.getElementById("workbench-status");
 const parsePanel = document.getElementById("parse-panel");
 const messageList = document.getElementById("message-list");
 const parseJson = document.getElementById("parse-json");
+const parseJsonBlock = document.getElementById("parse-json-block");
+const copyParseJsonButton = document.getElementById("copy-parse-json-button");
 const previewPanel = document.getElementById("preview-panel");
 const promptPreviewOutput = document.getElementById("prompt-preview-output");
 const copyPromptButton = document.getElementById("copy-prompt-button");
@@ -743,7 +745,7 @@ function flashButtonLabel(button, label, revertLabel) {
 
 function resetWorkbenchDisplay() {
   messageList.replaceChildren();
-  parseJson.hidden = true;
+  parseJsonBlock.hidden = true;
   parseJson.textContent = "";
   previewPanel.hidden = true;
   promptPreviewOutput.textContent = "";
@@ -921,7 +923,7 @@ function renderMessageItem(message, index) {
 function renderWorkbenchParse() {
   const parse = state.workbench.parse;
   messageList.replaceChildren();
-  parseJson.hidden = true;
+  parseJsonBlock.hidden = true;
   parseJson.textContent = "";
   state.workbench.selections = [];
 
@@ -941,11 +943,11 @@ function renderWorkbenchParse() {
     });
     setStatus(workbenchStatus, "parsed conversation", "success");
   } else if (parse.status === "success") {
-    parseJson.hidden = false;
+    parseJsonBlock.hidden = false;
     parseJson.textContent = JSON.stringify(parse, null, 2);
     setStatus(workbenchStatus, `parsed ${parse.parserId ?? "page"}`, "success");
   } else {
-    parseJson.hidden = false;
+    parseJsonBlock.hidden = false;
     parseJson.textContent = JSON.stringify(parse, null, 2);
     setStatus(workbenchStatus, summarizeParseFailure(parse), "error");
   }
@@ -1264,6 +1266,11 @@ copySuggestionButton.addEventListener("click", async () => {
 copyPromptButton.addEventListener("click", async () => {
   await copyText(promptPreviewOutput.textContent);
   flashButtonLabel(copyPromptButton, "copied", "copy");
+});
+
+copyParseJsonButton.addEventListener("click", async () => {
+  await copyText(parseJson.textContent);
+  flashButtonLabel(copyParseJsonButton, "copied", "copy");
 });
 
 refreshParseButton.addEventListener("click", () => {
