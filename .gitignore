@@ -8,9 +8,6 @@
 *api_key*
 *apikey*
 
-# Local dev fixtures and e2e harness (not versioned)
-dev/
-
 # Python / Jupyter artifacts
 __pycache__/
 *.pyc

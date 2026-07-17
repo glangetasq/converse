@@ -34,5 +34,3 @@ The backend is organized by domain under `backend/app/`:
 - `routers/` + `web/` — FastAPI routes and request/response serialization.
 
 The extension lives in `frontend/`: side-panel UI, page parsers, backend API client, and suggestion injection.
-
-`dev/` holds a mini-LinkedIn fixture site and a Playwright e2e harness that drive the real extension against the backend with a fake LLM provider — no API keys needed.
