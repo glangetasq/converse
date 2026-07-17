@@ -17,6 +17,7 @@
         <nav class="header-actions" aria-label="views">
           <button id="compose-tab-button" class="tab-button is-selected" type="button" data-view-button="composer">compose</button>
           <button id="workbench-tab-button" class="tab-button" type="button" data-view-button="workbench">workbench</button>
+          <button id="settings-tab-button" class="tab-button" type="button" data-view-button="settings">settings</button>
           <button id="login-open-button" class="tab-button tab-button-edge" type="button" title="open login page">login</button>
         </nav>
       </header>
@@ -110,7 +111,37 @@
           <pre id="prompt-preview-output" class="code-block code-block-tall"></pre>
         </section>
       </section>
+      <section id="settings-view" class="view" aria-label="settings" hidden>
+        <div class="field-group">
+          <label class="field-label" for="settings-backend-url">backend url</label>
+          <input
+            id="settings-backend-url"
+            class="input"
+            type="url"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="http://localhost:3000">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="settings-api-key">api key</label>
+          <input
+            id="settings-api-key"
+            class="input"
+            type="password"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="leave blank for local dev">
+        </div>
+
+        <div class="button-row">
+          <button id="settings-save-button" class="button button-primary" type="button">save</button>
+          <button id="settings-test-button" class="button" type="button">test</button>
+        </div>
+        <p id="settings-status" class="status-line" role="status" aria-live="polite"></p>
+      </section>
     </main>
+
     <script src="api.js"></script>
     <script src="popup.js"></script>
   </body>

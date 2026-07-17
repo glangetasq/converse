@@ -23,6 +23,12 @@ const viewButtons = Array.from(document.querySelectorAll("[data-view-button]"));
 const composerView = document.getElementById("composer-view");
 const resultsView = document.getElementById("results-view");
 const workbenchView = document.getElementById("workbench-view");
+const settingsView = document.getElementById("settings-view");
+const settingsBackendUrl = document.getElementById("settings-backend-url");
+const settingsApiKey = document.getElementById("settings-api-key");
+const settingsSaveButton = document.getElementById("settings-save-button");
+const settingsTestButton = document.getElementById("settings-test-button");
+const settingsStatus = document.getElementById("settings-status");
 const currentUserBadges = Array.from(document.querySelectorAll("[data-current-user]"));
 const sourceSiteBadges = Array.from(document.querySelectorAll("[data-source-site]"));
 const loginOpenButton = document.getElementById("login-open-button");
@@ -124,10 +130,12 @@ function setView(view) {
   const showingComposer = view === "composer";
   const showingResults = view === "results";
   const showingWorkbench = view === "workbench";
+  const showingSettings = view === "settings";
 
   composerView.hidden = !showingComposer;
   resultsView.hidden = !showingResults;
   workbenchView.hidden = !showingWorkbench;
+  settingsView.hidden = !showingSettings;
 
   viewButtons.forEach((button) => {
     const target = button.dataset.viewButton;
@@ -143,6 +151,44 @@ function openView(view) {
 
   if (view === "workbench" && !state.workbench.parse) {
     refreshWorkbenchParse();
+  }
+
+  if (view === "settings") {
+    loadSettingsFields();
+  }
+}
+
+// --- settings ------------------------------------------------------------
+
+async function loadSettingsFields() {
+  const { baseUrl, apiKey } = await ConverseApi.getSettings();
+  settingsBackendUrl.value = baseUrl;
+  settingsApiKey.value = apiKey;
+  setStatus(settingsStatus, "");
+}
+
+async function saveSettings() {
+  await ConverseApi.saveSettings({
+    backendUrl: settingsBackendUrl.value,
+    apiKey: settingsApiKey.value
+  });
+  const { baseUrl } = await ConverseApi.getSettings();
+  settingsBackendUrl.value = baseUrl;
+  setStatus(settingsStatus, `saved — using ${baseUrl}`, "success");
+}
+
+async function testSettings() {
+  settingsTestButton.disabled = true;
+  setStatus(settingsStatus, "testing… (a cold backend takes a few seconds)");
+  try {
+    // /health proves reachability; a real endpoint proves the api key and the db.
+    await ConverseApi.checkHealth();
+    await ConverseApi.getModels();
+    setStatus(settingsStatus, "ok — reachable and authorised", "success");
+  } catch (error) {
+    setStatus(settingsStatus, error.message, "error");
+  } finally {
+    settingsTestButton.disabled = false;
   }
 }
 
@@ -249,7 +295,7 @@ async function renderCurrentUserBadge() {
 async function loadModels() {
   let catalog;
   try {
-    catalog = await ConverseApi.getModels();
+    catalog = await ConverseApi.getModelsCached();
   } catch (error) {
     modelSelect.replaceChildren(new Option("backend offline — no models", "", true, true));
     setStatus(composerStatus, errorText(error), "error");
@@ -1120,6 +1166,14 @@ viewButtons.forEach((button) => {
   button.addEventListener("click", () => {
     openView(button.dataset.viewButton);
   });
+});
+
+settingsSaveButton.addEventListener("click", () => {
+  saveSettings().catch((error) => setStatus(settingsStatus, error.message, "error"));
+});
+
+settingsTestButton.addEventListener("click", () => {
+  testSettings();
 });
 
 loginOpenButton.addEventListener("click", () => {
