@@ -21,6 +21,7 @@ export NEON_DIRECT_URL="$(security find-generic-password -s converse-neon-direct
 export NEON_POOLED_URL="$(security find-generic-password -s converse-neon-pooled-url    -w 2>/dev/null || true)"
 export OPENAI_API_KEY="$(security find-generic-password  -s converse-openai-api-key     -w 2>/dev/null || true)"
 export ANTHROPIC_API_KEY="$(security find-generic-password -s converse-anthropic-api-key -w 2>/dev/null || true)"
+export CONVERSE_API_KEY="$(security find-generic-password -s converse-api-key          -w 2>/dev/null || true)"
 
 # Report anything missing so a silent typo in a service name is visible.
 _converse_missing=""
@@ -28,7 +29,8 @@ for _pair in \
   "NEON_DIRECT_URL:converse-neon-direct-url" \
   "NEON_POOLED_URL:converse-neon-pooled-url" \
   "OPENAI_API_KEY:converse-openai-api-key" \
-  "ANTHROPIC_API_KEY:converse-anthropic-api-key"; do
+  "ANTHROPIC_API_KEY:converse-anthropic-api-key" \
+  "CONVERSE_API_KEY:converse-api-key"; do
   _var="${_pair%%:*}"
   eval "_val=\${$_var}"
   [ -z "$_val" ] && _converse_missing="${_converse_missing} ${_pair#*:}"
@@ -38,6 +40,6 @@ if [ -n "$_converse_missing" ]; then
   echo "Converse: loaded, but missing from Keychain ->${_converse_missing}" >&2
   echo "  add them with: ./scripts/store_secrets.sh" >&2
 else
-  echo "Converse: all 4 secrets loaded into this shell."
+  echo "Converse: all 5 secrets loaded into this shell."
 fi
 unset _converse_missing _pair _var _val
