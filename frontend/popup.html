@@ -24,7 +24,12 @@
 
       <section id="composer-view" class="view" aria-label="composer">
         <div class="field-group">
-          <label class="field-label" for="model-select">model</label>
+          <div class="field-header">
+            <label class="field-label" for="model-select">model</label>
+            <div class="field-header-actions">
+              <button id="refresh-models-button" class="button button-ghost" type="button" title="re-query available models from the backend">refresh</button>
+            </div>
+          </div>
           <select id="model-select" class="input">
             <option value="">loading models…</option>
           </select>

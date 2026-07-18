@@ -179,6 +179,16 @@
     }
   }
 
+  // Force a fresh fetch (bypasses the TTL + warm gating) and overwrite the cache, so the
+  // menu picks up models a redeploy added without waiting out the TTL or reopening the panel.
+  async function refreshModels() {
+    const payload = await request("/api/llm/models");
+    await chrome.storage.local.set({
+      [MODELS_CACHE_STORAGE_KEY]: { payload, fetchedAt: Date.now() }
+    });
+    return payload;
+  }
+
   globalThis.ConverseApi = Object.freeze({
     getBaseUrl,
     getSettings,
@@ -195,6 +205,7 @@
     checkHealth: () => request("/health"),
     getModels: () => request("/api/llm/models"),
     getModelsCached,
+    refreshModels,
     generateFollowup: (payload) => request("/api/followups/generate", { method: "POST", body: payload }),
     ingestFollowup: (generationId, payload) =>
       request(`/api/followups/${generationId}/ingest`, { method: "POST", body: payload }),

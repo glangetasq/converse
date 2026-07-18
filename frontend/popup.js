@@ -33,6 +33,7 @@ const currentUserBadges = Array.from(document.querySelectorAll("[data-current-us
 const sourceSiteBadges = Array.from(document.querySelectorAll("[data-source-site]"));
 const loginOpenButton = document.getElementById("login-open-button");
 const modelSelect = document.getElementById("model-select");
+const refreshModelsButton = document.getElementById("refresh-models-button");
 const contextInput = document.getElementById("context-input");
 const generateButton = document.getElementById("generate-button");
 const composerStatus = document.getElementById("composer-status");
@@ -311,14 +312,14 @@ async function renderCurrentUserBadge() {
 
 // --- models ---------------------------------------------------------------
 
-async function loadModels() {
+async function loadModels({ refresh = false } = {}) {
   let catalog;
   try {
-    catalog = await ConverseApi.getModelsCached();
+    catalog = refresh ? await ConverseApi.refreshModels() : await ConverseApi.getModelsCached();
   } catch (error) {
     modelSelect.replaceChildren(new Option("backend offline — no models", "", true, true));
     setStatus(composerStatus, errorText(error), "error");
-    return;
+    return false;
   }
 
   const models = Array.isArray(catalog?.models) ? catalog.models : [];
@@ -331,6 +332,7 @@ async function loadModels() {
   const modelIds = models.map((model) => model.id);
   modelSelect.value = modelIds.includes(storedModel) ? storedModel : catalog.default;
   setStatus(composerStatus, "");
+  return true;
 }
 
 // --- per-tab state ---------------------------------------------------------
@@ -1300,6 +1302,15 @@ copyParseJsonButton.addEventListener("click", async () => {
 
 refreshParseButton.addEventListener("click", () => {
   refreshWorkbenchParse();
+});
+
+refreshModelsButton.addEventListener("click", async () => {
+  refreshModelsButton.disabled = true;
+  const restore = refreshModelsButton.textContent;
+  refreshModelsButton.textContent = "…";
+  const ok = await loadModels({ refresh: true });
+  refreshModelsButton.disabled = false;
+  flashButtonLabel(refreshModelsButton, ok ? "refreshed" : "failed", restore);
 });
 
 saveExampleButton.addEventListener("click", () => {
