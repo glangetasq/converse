@@ -13,6 +13,7 @@ items=(
   "converse-neon-pooled-url:Neon POOLED connection string (-pooler, app runtime)"
   "converse-openai-api-key:OpenAI API key"
   "converse-anthropic-api-key:Anthropic API key"
+  "converse-hosted-api-key:Hosted vLLM API key"
 )
 
 for entry in "${items[@]}"; do
