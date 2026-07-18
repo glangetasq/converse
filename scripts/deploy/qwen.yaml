@@ -1,0 +1,29 @@
+# Flags for qwen.sh (converse-qwen). Service name + image are in the .sh (tag is its arg).
+# Boolean flags take an empty value, same convention as backend.yaml's --allow-unauthenticated.
+
+--region: europe-west1
+
+# GPU — one L4 (24GB) per instance. zonal-redundancy off matches the starter quota and is cheaper.
+--gpu: 1
+--gpu-type: nvidia-l4
+--no-gpu-zonal-redundancy:
+
+# access — vLLM's --api-key (HOSTED_API_KEY) is the real guard (d-auth).
+--allow-unauthenticated:
+--service-account: converse-backend-run@converse-2997.iam.gserviceaccount.com
+
+# scaling — max-instances must stay <= the L4 quota. concurrency 4 = the eval's concurrency (one L4 is the bottleneck).
+--min-instances: 0
+--max-instances: 1
+--concurrency: 4
+
+# resources — 8CPU/32Gi are the recommended L4 sizes (min 4/16Gi). no-cpu-throttling keeps the
+# instance genuinely running between tokens rather than throttled to zero.
+--cpu: 8
+--memory: 32Gi
+--timeout: 600
+--no-cpu-throttling:
+
+# secrets — vLLM reads HOSTED_API_KEY to enforce --api-key. needs secretAccessor on the runtime SA.
+--set-secrets:
+  HOSTED_API_KEY: HOSTED_API_KEY:latest
