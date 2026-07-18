@@ -21,7 +21,7 @@ Keep `AUTO_CREATE_TABLES` unset/false — the schema is loaded out-of-band, not 
 for f in sql/*.sql; do psql "$NEON_DIRECT_URL" -v ON_ERROR_STOP=1 -f "$f"; done
 ```
 
-The deployed backend runs on Cloud Run; see `scripts/gcp_deploy.sh`.
+The deployed backend runs on Cloud Run; see `scripts/deploy/backend.sh`.
 
 ## Routes
 

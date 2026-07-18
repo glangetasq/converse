@@ -1,7 +1,5 @@
-# Flags for gcp_deploy.sh. Service name is positional, so it lives there.
+# Flags for backend.sh (converse-backend). Service name + image are in the .sh (tag is its arg).
 
-# image — never :latest (the tag string is diffed, not the digest)
---image: europe-west2-docker.pkg.dev/converse-2997/converse/backend:v1
 --region: europe-west2
 
 # access — CONVERSE_API_KEY is the real guard.
@@ -24,6 +22,10 @@
   AUTO_CREATE_TABLES: "false"
   ALLOWED_ORIGINS: "chrome-extension://*"
   DEFAULT_MODEL: claude-haiku-4-5-20251001
+  # hosted/qwen3-8b lives in europe-west1. Root URL only — VLLMClient appends /v1/chat/completions.
+  HOSTED_API_BASE_URL: "https://converse-qwen-63814975311.europe-west1.run.app"
+  # cold L4 is 60-90s; generous on purpose (client default is 120s).
+  HOSTED_API_TIMEOUT_SECONDS: "300"
 
 # secrets — names only; needs secretAccessor on the runtime SA
 --set-secrets:
@@ -31,3 +33,4 @@
   OPENAI_API_KEY: OPENAI_API_KEY:latest
   ANTHROPIC_API_KEY: ANTHROPIC_API_KEY:latest
   CONVERSE_API_KEY: CONVERSE_API_KEY:latest
+  HOSTED_API_KEY: HOSTED_API_KEY:latest
