@@ -14,6 +14,10 @@
   // Scale-to-zero: a cold hit pays container start + Neon resume, so the first call
   // can be slow or 5xx where a warm one would not.
   const REQUEST_TIMEOUT_MS = 20000;
+  // A hosted/* model runs on its own scale-to-zero GPU service; a cold one adds a
+  // multi-minute container + weight-load start on top of the backend, so a generate
+  // call routed to it needs a far longer ceiling than a frontier API call.
+  const HOSTED_REQUEST_TIMEOUT_MS = 300000;
   const RETRY_DELAYS_MS = [400, 1200];
 
   let settingsPromise = null;
@@ -43,6 +47,9 @@
   }
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Mirrors the backend's VLLMClient.MODEL_PREFIX — self-hosted models are `hosted/<name>`.
+  const isHostedModel = (model) => typeof model === "string" && model.startsWith("hosted/");
 
   function markBackendOk() {
     return chrome.storage.local.set({ [LAST_OK_STORAGE_KEY]: Date.now() }).catch(() => {});
@@ -89,9 +96,9 @@
     return headers;
   }
 
-  async function attempt(baseUrl, apiKey, path, method, body) {
+  async function attempt(baseUrl, apiKey, path, method, body, timeoutMs) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       return await fetch(`${baseUrl}${path}`, {
         method,
@@ -104,7 +111,7 @@
     }
   }
 
-  async function request(path, { method = "GET", body } = {}) {
+  async function request(path, { method = "GET", body, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
     const { baseUrl, apiKey } = await getSettings();
     const isLocal = baseUrl.startsWith("http://localhost") || baseUrl.startsWith("http://127.0.0.1");
     let response = null;
@@ -113,7 +120,7 @@
     for (let i = 0; i <= RETRY_DELAYS_MS.length; i += 1) {
       networkError = null;
       try {
-        response = await attempt(baseUrl, apiKey, path, method, body);
+        response = await attempt(baseUrl, apiKey, path, method, body, timeoutMs);
       } catch (error) {
         networkError = error;
       }
@@ -130,7 +137,7 @@
 
     if (networkError !== null) {
       if (networkError.name === "AbortError") {
-        throw new Error(`Backend timed out after ${REQUEST_TIMEOUT_MS / 1000}s at ${baseUrl}.`);
+        throw new Error(`Backend timed out after ${timeoutMs / 1000}s at ${baseUrl}.`);
       }
       if (isLocal) {
         throw new Error(`Backend unreachable at ${baseUrl} — is it running?`);
@@ -206,7 +213,12 @@
     getModels: () => request("/api/llm/models"),
     getModelsCached,
     refreshModels,
-    generateFollowup: (payload) => request("/api/followups/generate", { method: "POST", body: payload }),
+    generateFollowup: (payload) =>
+      request("/api/followups/generate", {
+        method: "POST",
+        body: payload,
+        timeoutMs: isHostedModel(payload?.model) ? HOSTED_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS
+      }),
     ingestFollowup: (generationId, payload) =>
       request(`/api/followups/${generationId}/ingest`, { method: "POST", body: payload }),
     previewPrompt: (payload) => request("/api/followups/preview", { method: "POST", body: payload }),
